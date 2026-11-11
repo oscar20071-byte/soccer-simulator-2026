@@ -1,0 +1,34 @@
+SOCCER SIMULATOR 2026 — VERSIÓN 1.2
+
+NOVEDADES
+- Crear equipos y plantillas personalizadas.
+- Registrar futbolistas con nombre, nacionalidad, edad, posición, dorsal y valoración.
+- Crear ligas y elegir una vuelta o ida y vuelta.
+- Inscribir clubes y generar calendario automático todos contra todos.
+- Simular cada partido pendiente desde el calendario o desde Partidos.
+- Clasificación automática: PJ, G, E, P, GF, GC, DG y puntos.
+- El motor asigna goleadores, asistencias y minutos a los partidos cuando hay jugadores registrados.
+- Estadísticas individuales: partidos, goles y asistencias.
+- Historial de resultados y rankings de goleadores/asistentes.
+- Exportar e importar respaldo completo.
+
+PROBAR EN PC
+1. Descomprime el ZIP.
+2. Abre la carpeta Soccer_Simulator_2026.
+3. Haz doble clic en index.html para probar la versión local en Chrome, Edge o Firefox.
+
+INSTALAR EN PC Y ANDROID COMO APP
+Para que el navegador permita instalarla como PWA y usar el modo sin conexión, los archivos deben estar publicados en un sitio HTTPS.
+1. Sube los cuatro archivos de esta carpeta a un alojamiento web estático con HTTPS.
+2. Abre la dirección HTTPS en Chrome o Edge.
+3. En PC, usa el icono Instalar de la barra del navegador o el botón Instalar app si aparece.
+4. En Android, abre la dirección en Chrome, toca el menú ⋮ y elige Instalar aplicación o Añadir a pantalla de inicio.
+
+PASAR DATOS ENTRE DISPOSITIVOS
+Los datos se guardan en el navegador de cada dispositivo, no en la nube. En el dispositivo de origen entra en Configuración > Exportar respaldo. En el otro dispositivo entra en Configuración > Importar respaldo y selecciona el archivo JSON.
+
+NOTAS
+- La simulación es recreativa y usa valoraciones más azar.
+- Para registrar goleadores/asistencias en un partido, crea jugadores en los dos equipos antes de simularlo.
+- Si un equipo no tiene jugadores, puede jugar, pero los goles de ese equipo no se atribuirán a un futbolista.
+- Esta versión no incluye cuentas ni sincronización automática en la nube.

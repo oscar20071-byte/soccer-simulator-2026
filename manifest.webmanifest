@@ -1,0 +1,10 @@
+{
+  "name": "Soccer Simulator 2026",
+  "short_name": "SoccerSim 2026",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#07111d",
+  "theme_color": "#07111d",
+  "description": "Crea equipos, jugadores personalizados y ligas de fútbol."
+}
