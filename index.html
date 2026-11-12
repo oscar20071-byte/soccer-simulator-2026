@@ -189,6 +189,48 @@ function calculatePlayerRating(p){
 
  return Math.max(1,Math.min(10,Number(rating.toFixed(1))));
 }
+ function matchReportText(match){
+ const homeGoals=match.events.filter(e=>e.type==='Gol'&&e.team===match.home);
+ const awayGoals=match.events.filter(e=>e.type==='Gol'&&e.team===match.away);
+
+ const goalsText=[...homeGoals,...awayGoals]
+  .sort((a,b)=>a.minute-b.minute)
+  .map(e=>{
+   let scorer=players.find(p=>p.id===e.scorerId);
+   let assist=players.find(p=>p.id===e.assistId);
+   return `${e.minute}' ⚽ ${scorer?.name||'Jugador'}${assist?' (Asistencia: '+assist.name+')':' (Sin asistencia)'}`;
+  }).join('\n');
+
+ const incidents=match.events
+  .filter(e=>e.type!=='Gol')
+  .sort((a,b)=>(a.minute||0)-(b.minute||0))
+  .map(e=>`${e.minute||'?'}' ${e.type}: ${e.player||''}`)
+  .join('\n');
+
+ return `⚽ SOCCER SIMULATOR 2026
+🏆 ${match.competition||'Partido amistoso'}
+
+${match.home} ${match.a} - ${match.b} ${match.away}
+
+⚽ GOLES
+${goalsText||'Sin goles'}
+
+📋 INCIDENCIAS
+${incidents||'Sin incidencias'}
+
+🏟️ DISTOCK MATCH CENTER`;
+}
+
+function copyMatchReport(){
+ const match=matches[matches.length-1];
+ if(!match)return toast('No hay partidos para copiar.');
+
+ const report=matchReportText(match);
+
+ navigator.clipboard.writeText(report)
+  .then(()=>toast('¡Informe copiado para Discord!'))
+  .catch(()=>toast('No se pudo copiar el informe.'));
+}
  function play(home,away,competition='',fixture=null){
  if(home===away)return toast('Elige dos clubes diferentes.');
  let hTeam=teams.find(t=>t.name===home),aTeam=teams.find(t=>t.name===away);
