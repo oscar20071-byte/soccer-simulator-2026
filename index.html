@@ -583,7 +583,8 @@ if(settings.actions){
    let action=actions[Math.floor(Math.random()*actions.length)];
    let minute=1+Math.floor(Math.random()*90);
 
-   if(action.includes('pase')){
+   if(settings.individualStats){
+ if(action.includes('pase')){
     stat.passes++;
     p.stats.passes++;
     if(Math.random()<.85){
@@ -619,7 +620,7 @@ if(settings.actions){
      p.stats.shotsOnTarget++;
     }
    }
-
+  }
    events.push({
     minute,type:'Acción',team:club,
     player:p.name,description:`${p.name} ${action}.`
