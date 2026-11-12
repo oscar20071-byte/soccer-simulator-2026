@@ -189,38 +189,64 @@ function calculatePlayerRating(p){
 
  return Math.max(1,Math.min(10,Number(rating.toFixed(1))));
 }
- function matchReportText(match){
- const homeGoals=match.events.filter(e=>e.type==='Gol'&&e.team===match.home);
- const awayGoals=match.events.filter(e=>e.type==='Gol'&&e.team===match.away);
-
- const goalsText=[...homeGoals,...awayGoals]
-  .sort((a,b)=>a.minute-b.minute)
-  .map(e=>{
-   let scorer=players.find(p=>p.id===e.scorerId);
-   let assist=players.find(p=>p.id===e.assistId);
-   return `${e.minute}' ⚽ ${scorer?.name||'Jugador'}${assist?' (Asistencia: '+assist.name+')':' (Sin asistencia)'}`;
-  }).join('\n');
+ 
+function matchReportText(match){
+ const goals=match.events
+  .filter(e=>e.type==='Gol')
+  .sort((a,b)=>a.minute-b.minute);
 
  const incidents=match.events
-  .filter(e=>e.type!=='Gol')
-  .sort((a,b)=>(a.minute||0)-(b.minute||0))
-  .map(e=>`${e.minute||'?'}' ${e.type}: ${e.player||''}`)
-  .join('\n');
+  .filter(e=>['Amarilla','Roja','Lesión','Falta'].includes(e.type))
+  .sort((a,b)=>a.minute-b.minute);
 
- return `⚽ SOCCER SIMULATOR 2026
-🏆 ${match.competition||'Partido amistoso'}
+ const substitutions=match.subs||[];
+
+ const ratings=(match.playerStats||[])
+  .slice()
+  .sort((a,b)=>b.rating-a.rating);
+
+ const goalText=goals.map(e=>{
+  const scorer=players.find(p=>p.id===e.scorerId);
+  const assist=players.find(p=>p.id===e.assistId);
+  return `${e.minute}' ⚽ ${scorer?.name||e.player} (${e.team})${assist?' — Asistencia: '+assist.name:' — Sin asistencia'}`;
+ }).join('\n');
+
+ const incidentText=incidents.map(e=>
+  `${e.minute}' ${e.type}: ${e.player} (${e.team})`
+ ).join('\n');
+
+ const subText=substitutions.map(s=>
+  `${s.minute}' 🔄 ${s.club}: Sale ${s.out}, entra ${s.in}`
+ ).join('\n');
+
+ const ratingText=ratings.map(p=>
+  `${p.name} (${p.team}) — ${p.rating.toFixed(1)}/10 | G:${p.goals} A:${p.assists} Min:${p.minutes}`
+ ).join('\n');
+
+ return `🏆 SOCCER SIMULATOR 2026
+⚽ ${match.competition||'PARTIDO AMISTOSO'}
 
 ${match.home} ${match.a} - ${match.b} ${match.away}
 
-⚽ GOLES
-${goalsText||'Sin goles'}
+⚽ GOLES Y ASISTENCIAS
+${goalText||'Sin goles'}
 
-📋 INCIDENCIAS
-${incidents||'Sin incidencias'}
+🟨 INCIDENCIAS
+${incidentText||'Sin incidencias'}
 
-🏟️ DISTOCK MATCH CENTER`;
+🔄 SUSTITUCIONES
+${subText||'Sin sustituciones'}
+
+⭐ VALORACIONES
+${ratingText||'Sin estadísticas'}
+
+🏅 MVP: ${match.mvp||'Sin MVP'}
+
+📅 ${match.date}
+
+━━━━━━━━━━━━━━━━━━━━━━
+SOCCER SIMULATOR 2026`;
 }
-
 function copyMatchReport(){
  const match=matches[matches.length-1];
  if(!match)return toast('No hay partidos para copiar.');
