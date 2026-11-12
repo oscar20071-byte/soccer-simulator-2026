@@ -1182,7 +1182,18 @@ document.addEventListener('click',e=>{
  let st=e.target.closest('[data-stadium]');if(st){let t=teams[+st.dataset.stadium],name=prompt('Nombre del estadio:',t.stadium);if(name===null)return;let cap=prompt('Capacidad:',t.capacity);if(cap===null)return;t.stadium=name.trim()||'Estadio Municipal';t.capacity=Math.max(0,+cap||0);save()}
  let cl=e.target.closest('[data-close-season]');if(cl)closeLeague(+cl.dataset.closeSeason);
  if(e.target.id==='advance')advanceSeason();
- if(e.target.id==='export'){let data={version:'2.1',season,teams,players,comps,matches,champions,awards},blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='soccer-simulator-2026-v2.1.json';a.click();URL.revokeObjectURL(a.href)}
+if(e.target.id==='export'){
+ let data={
+  version:'2.1',
+  season,teams,players,comps,matches,champions,awards,settings
+ };
+ let blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+ let a=document.createElement('a');
+ a.href=URL.createObjectURL(blob);
+ a.download='soccer-simulator-2026-v2.1.json';
+ a.click();
+ URL.revokeObjectURL(a.href);
+}
 });
 document.addEventListener('submit',async e=>{
  let f=e.target;
