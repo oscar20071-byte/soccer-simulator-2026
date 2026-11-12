@@ -474,8 +474,12 @@ function play(home,away,competition='',fixture=null){
  let aPower=aline.reduce((s,p)=>s+p.rating*(1-p.stats.fatigue/180),0)/11;
 
  let hg=poisson(Math.max(.2,Math.min(3.5,1.25+(hPower-aPower)/45+.18)));
- let ag=poisson(Math.max(.2,Math.min(3.5,1.15+(aPower-hPower)/45)));
+let ag=poisson(Math.max(.2,Math.min(3.5,1.15+(aPower-hPower)/45)));
 
+if(settings.ownGoals){
+ if(Math.random()<.04) ag++;
+ if(Math.random()<.04) hg++;
+}
  // Sustituciones
  function makeSubs(line,bench,club){
   let count=Math.min(5,bench.length,Math.floor(Math.random()*4)+2);
