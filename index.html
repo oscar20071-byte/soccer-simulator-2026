@@ -12,6 +12,72 @@
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font:15px Inter,system-ui,Arial,sans-serif}button,input,select{font:inherit}button{border:0;border-radius:9px;padding:10px 14px;background:var(--green);color:#042018;font-weight:800;cursor:pointer}button:disabled{opacity:.4;cursor:not-allowed}.secondary{background:#172d40;color:var(--txt);border:1px solid var(--line)}.danger{background:#492331;color:#ffdce3}.app{display:grid;grid-template-columns:225px 1fr;min-height:100vh}.side{background:#091724;border-right:1px solid var(--line);padding:18px 13px}.brand{font-weight:950;font-size:19px;margin:5px 8px 25px}.brand b{color:var(--green)}.brand small{display:block;color:var(--muted);font-size:10px;letter-spacing:.2em;margin-top:5px}.nav{display:grid;gap:5px}.nav button{background:transparent;color:var(--muted);text-align:left}.nav button.active,.nav button:hover{background:#10372f;color:var(--green)}.main{min-width:0}.top{height:68px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 25px}.top small{color:var(--muted);font-weight:800;letter-spacing:.12em}.content{padding:24px;max-width:1450px;margin:auto}.hero{border:1px solid var(--line);border-radius:20px;padding:28px;background:radial-gradient(ellipse at 85% 10%,#0d5b4b 0,transparent 42%),linear-gradient(120deg,#102235,#091925)}.hero h1{font-size:clamp(30px,5vw,48px);margin:12px 0}.eyebrow{color:var(--green);font-size:11px;font-weight:900;letter-spacing:.17em}.notice,.muted{color:var(--muted);line-height:1.5}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0}.stat,.card{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:16px;margin-top:14px}.stat small{color:var(--muted);font-size:10px;font-weight:900}.stat strong{display:block;font-size:27px;margin-top:5px}.card h2{font-size:18px;margin:0 0 13px}.row,.actions,.subhead{display:flex;gap:9px;flex-wrap:wrap;align-items:end;margin-top:12px}.subhead{justify-content:space-between;align-items:center}.field{display:grid;gap:6px;min-width:130px;flex:1}.field label{font-size:12px;color:var(--muted);font-weight:750}.field input,.field select{width:100%;min-width:0;background:#081724;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:10px}.tablewrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:550px}th,td{text-align:left;padding:9px;border-bottom:1px solid var(--line);white-space:nowrap}th{font-size:10px;color:var(--muted)}.empty{color:var(--muted)}.teamrow{display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--line)}.crest,.avatar{width:38px;height:38px;border-radius:10px;object-fit:cover;background:#193247;display:grid;place-items:center;flex:none}.avatar{border-radius:50%}.pill{font-size:11px;color:var(--green);background:#10372f;padding:5px 9px;border-radius:99px;white-space:nowrap}.fixture{display:grid;grid-template-columns:1fr auto 1fr auto;gap:9px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line)}.away{text-align:right}.score{font-size:19px;font-weight:950;color:var(--green)}.tag{font-size:11px;color:var(--gold)}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.mobilebar{display:none}.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#173d35;border:1px solid #247d67;padding:12px 18px;border-radius:10px;z-index:10;max-width:90vw}.mini{padding:6px 9px;font-size:12px}
 @media(max-width:850px){.app{grid-template-columns:1fr}.side{display:none}.mobilebar{display:flex;overflow:auto;gap:5px;padding:8px;background:#091724}.mobilebar button{white-space:nowrap;padding:8px 10px}.top{padding:0 15px}.content{padding:14px}.grid{grid-template-columns:repeat(2,1fr)}.two{grid-template-columns:1fr}}
 @media(max-width:480px){.fixture{grid-template-columns:1fr auto 1fr}.fixture button{grid-column:1/-1}}
+ 
+/* INTERFAZ MEJORADA V2.1 */
+.side{
+ position:sticky;
+ top:0;
+ height:100vh;
+ overflow-y:auto;
+ background:linear-gradient(180deg,#091724,#07111c);
+}
+.brand{
+ font-size:21px;
+ letter-spacing:-.7px;
+ padding-bottom:15px;
+ border-bottom:1px solid var(--line);
+}
+.nav{
+ gap:7px;
+}
+.nav button{
+ display:flex;
+ align-items:center;
+ gap:10px;
+ padding:12px;
+ border-radius:10px;
+ font-weight:750;
+ transition:.2s;
+}
+.nav button.active{
+ background:linear-gradient(90deg,#103d34,#102b2c);
+ border-left:3px solid var(--green);
+}
+.nav button:hover{
+ transform:translateX(3px);
+}
+.top{
+ background:#091724;
+ position:sticky;
+ top:0;
+ z-index:5;
+}
+.hero{
+ box-shadow:0 15px 45px #0003;
+}
+.stat,.card{
+ transition:border-color .2s,transform .2s;
+}
+.stat:hover,.card:hover{
+ border-color:#28745f;
+}
+.stat strong{
+ color:var(--green);
+}
+.card h2{
+ display:flex;
+ align-items:center;
+ gap:8px;
+}
+@media(max-width:850px){
+ .side{display:none}
+ .mobilebar{
+  position:sticky;
+  top:68px;
+  z-index:4;
+ }
+}
+
 </style>
 </head>
 <body>
@@ -29,8 +95,25 @@
 </div>
 <script>
 const KEY='ss26v21_';
-const pages=[['home','⌂','Inicio'],['teams','◈','Clubes'],['players','♟','Jugadores'],['comps','🏆','Competiciones'],['calendar','▦','Calendario'],['matches','⚽','Partidos'],['stats','▤','Estadísticas'],['history','◷','Historial'],['settings','⚙','Configuración']];
-const read=(k,d)=>{try{return JSON.parse(localStorage.getItem(KEY+k))??d}catch{return d}};
+
+const pages=[
+ ['home','⌂','Inicio'],
+ ['teams','◈','Clubes'],
+ ['players','♟','Jugadores'],
+ ['squads','👥','Plantillas'],
+ ['lineup','📋','Alineaciones'],
+ ['comps','🏆','Competiciones'],
+ ['calendar','▦','Calendario'],
+ ['matches','⚽','Partidos'],
+ ['discipline','🩺','Lesiones y sanciones'],
+ ['stats','📊','Estadísticas'],
+ ['awards','🥇','Premios'],
+ ['stadiums','🏟️','Estadios'],
+ ['history','◷','Historial'],
+ ['settings','⚙','Configuración']
+];
+let selectedTeam='';
+
 let teams=read('teams',[]),players=read('players',[]),comps=read('comps',[]),matches=read('matches',[]),champions=read('champions',[]),awards=read('awards',[]),season=read('season',2026),page='home';
 const uid=()=>Math.random().toString(36).slice(2,9)+Date.now().toString(36);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -88,7 +171,196 @@ function matchesPage(){shell('Partidos',`<div class="eyebrow">SIMULACIÓN</div><
 function statsPage(){let rank=k=>players.slice().sort((a,b)=>b.stats[k]-a.stats[k]).slice(0,10).map((p,i)=>`<div class="teamrow"><span style="flex:1">${i+1}. <b>${esc(p.name)}</b><div class="notice">${esc(p.team)}</div></span><span class="pill">${p.stats[k]}</span></div>`).join('')||'<p class="empty">Sin datos.</p>';shell('Estadísticas',`<div class="eyebrow">RENDIMIENTO</div><h1>Estadísticas</h1><div class="two"><div class="card"><h2>Goleadores</h2>${rank('goals')}</div><div class="card"><h2>Asistentes</h2>${rank('assists')}</div><div class="card"><h2>Porterías a cero</h2>${rank('cleanSheets')}</div><div class="card"><h2>Partidos disputados</h2>${rank('apps')}</div></div><div class="card"><h2>Premios individuales de la temporada ${season}</h2>${awards.filter(a=>a.season===season).map(a=>`<p>🏆 ${esc(a.title)}: <b>${esc(a.player)}</b> (${esc(a.team)})</p>`).join('')||'<p class="empty">Los premios se generan al cerrar una liga.</p>'}</div>`)}
 function historyPage(){shell('Historial',`<div class="eyebrow">ARCHIVO DE TEMPORADAS</div><h1>Historial</h1><div class="card"><h2>Campeones</h2>${champions.map(c=>`<div class="teamrow"><span style="flex:1"><b>${esc(c.competition)}</b><div class="notice">Temporada ${c.season}</div></span><span class="pill">${esc(c.winner)}</span></div>`).join('')||'<p class="empty">Todavía no hay campeones registrados.</p>'}</div><div class="card"><h2>Resultados recientes</h2>${matches.slice().reverse().slice(0,30).map(m=>`<div class="fixture"><span>${esc(m.home)}</span><b class="score">${m.a} - ${m.b}</b><span class="away">${esc(m.away)}</span></div><p class="notice">${esc(m.competition||'Amistoso')} · ${esc(m.date)}</p>`).join('')||'<p class="empty">Sin partidos.</p>'}</div>`)}
 function settingsPage(){shell('Configuración',`<div class="eyebrow">TEMPORADAS Y RESPALDOS</div><h1>Configuración</h1><div class="card"><h2>Ascensos y descensos</h2><p class="notice">Ascienden los dos primeros de cada división (salvo división 1); descienden los dos últimos (salvo la última división). Se aplica al avanzar la temporada.</p><button id="advance">Cerrar temporada y aplicar ascensos/descensos</button></div><div class="card"><h2>Temporada actual: ${season}</h2><p class="notice">Avanzar temporada cambia el año y recupera a los jugadores de lesiones y suspensiones.</p></div><div class="card"><h2>Respaldos</h2><p class="notice">Exporta o importa los datos de la versión 2.1.</p><div class="actions"><button id="export">Exportar respaldo</button><label class="secondary" style="padding:10px 14px;border-radius:9px;cursor:pointer">Importar respaldo<input id="import" type="file" accept="application/json" hidden></label></div></div><div class="card"><h2>Acerca de</h2><p>Soccer Simulator 2026 · Versión 2.1</p><p class="notice">Los datos se guardan localmente en este navegador.</p></div>`)}
-function render(){nav();({home,teams:teamsPage,players:playersPage,comps:compsPage,calendar:calendarPage,matches:matchesPage,stats:statsPage,history:historyPage,settings:settingsPage}[page])()}
+ 
+function squadsPage(){
+ shell('Plantillas',`
+ <div class="eyebrow">GESTIÓN DE EQUIPOS</div>
+ <h1>Plantillas</h1>
+ ${teams.map(t=>{
+  let squad=clubPlayers(t.name).slice().sort((a,b)=>b.rating-a.rating);
+  return `<div class="card">
+   <div class="subhead">
+    <h2>${esc(t.name)}</h2>
+    <span class="pill">${squad.length} jugadores</span>
+   </div>
+   ${squad.length?squad.map(p=>`
+    <div class="teamrow">
+     ${avatar(p)}
+     <div style="flex:1">
+      <b>${esc(p.name)}</b>
+      <div class="notice">${esc(p.position)} · Dorsal ${p.number}</div>
+     </div>
+     <b>${p.rating}</b>
+    </div>`).join(''):'<p class="empty">Sin jugadores registrados.</p>'}
+  </div>`;
+ }).join('')||'<p class="empty">Crea un club para comenzar.</p>'}
+ `);
+}
+
+function lineupPage(){
+ if(!selectedTeam||!teams.some(t=>t.name===selectedTeam))
+  selectedTeam=teams[0]?.name||'';
+
+ let t=teams.find(x=>x.name===selectedTeam);
+ let squad=t?clubPlayers(t.name).filter(p=>!p.stats.injury&&!p.stats.suspension).sort((a,b)=>b.rating-a.rating):[];
+ let eleven=squad.slice(0,11);
+ let bench=squad.slice(11);
+
+ shell('Alineaciones',`
+ <div class="eyebrow">CENTRO TÁCTICO</div>
+ <h1>Alineaciones</h1>
+ <div class="card">
+  <h2>Seleccionar equipo</h2>
+  <div class="field">
+   <label>Club</label>
+   <select id="lineupTeam">
+    ${teams.map(x=>`<option value="${esc(x.name)}" ${x.name===selectedTeam?'selected':''}>${esc(x.name)}</option>`).join('')}
+   </select>
+  </div>
+ </div>
+ ${t?`
+ <div class="grid">
+  <div class="stat"><small>JUGADORES DISPONIBLES</small><strong>${squad.length}</strong></div>
+  <div class="stat"><small>ONCE INICIAL</small><strong>${eleven.length}</strong></div>
+  <div class="stat"><small>SUPLENTES</small><strong>${bench.length}</strong></div>
+  <div class="stat"><small>MEDIA DEL ONCE</small><strong>${eleven.length?Math.round(eleven.reduce((s,p)=>s+p.rating,0)/eleven.length):0}</strong></div>
+ </div>
+ <div class="card">
+  <h2>Once titular recomendado</h2>
+  ${eleven.map((p,i)=>`
+   <div class="teamrow">
+    <span class="pill">${i+1}</span>
+    ${avatar(p)}
+    <div style="flex:1">
+     <b>${esc(p.name)}</b>
+     <div class="notice">${esc(p.position)} · ${p.number?'#'+p.number:''}</div>
+    </div>
+    <b>${p.rating}</b>
+   </div>`).join('')||'<p class="empty">No hay jugadores disponibles.</p>'}
+ </div>
+ <div class="card">
+  <h2>Banquillo</h2>
+  ${bench.map(p=>`
+   <div class="teamrow">
+    ${avatar(p)}
+    <span style="flex:1">${esc(p.name)} <small class="muted">(${esc(p.position)})</small></span>
+    <b>${p.rating}</b>
+   </div>`).join('')||'<p class="empty">No hay suplentes disponibles.</p>'}
+ </div>
+ `:'<div class="card"><p class="empty">Primero crea un club y registra jugadores.</p></div>'}
+ `);
+}
+
+function disciplinePage(){
+ let injured=players.filter(p=>p.stats.injury>0);
+ let suspended=players.filter(p=>p.stats.suspension>0);
+
+ shell('Lesiones y sanciones',`
+ <div class="eyebrow">SERVICIO MÉDICO Y DISCIPLINARIO</div>
+ <h1>Estado de jugadores</h1>
+ <div class="grid">
+  <div class="stat"><small>LESIONADOS</small><strong>${injured.length}</strong></div>
+  <div class="stat"><small>SUSPENDIDOS</small><strong>${suspended.length}</strong></div>
+  <div class="stat"><small>TARJETAS AMARILLAS</small><strong>${players.reduce((s,p)=>s+p.stats.yellow,0)}</strong></div>
+  <div class="stat"><small>TARJETAS ROJAS</small><strong>${players.reduce((s,p)=>s+p.stats.red,0)}</strong></div>
+ </div>
+ <div class="card">
+  <h2>Jugadores lesionados</h2>
+  ${injured.map(p=>`
+   <div class="teamrow">
+    <span style="flex:1"><b>${esc(p.name)}</b><div class="notice">${esc(p.team)}</div></span>
+    <span class="pill">${p.stats.injury} partidos de baja</span>
+   </div>`).join('')||'<p class="empty">No hay jugadores lesionados.</p>'}
+ </div>
+ <div class="card">
+  <h2>Jugadores suspendidos</h2>
+  ${suspended.map(p=>`
+   <div class="teamrow">
+    <span style="flex:1"><b>${esc(p.name)}</b><div class="notice">${esc(p.team)}</div></span>
+    <span class="pill">${p.stats.suspension} partidos</span>
+   </div>`).join('')||'<p class="empty">No hay jugadores suspendidos.</p>'}
+ </div>
+ <div class="card">
+  <h2>Historial disciplinario</h2>
+  ${players.filter(p=>p.stats.yellow||p.stats.red).sort((a,b)=>b.stats.red-a.stats.red||b.stats.yellow-a.stats.yellow).map(p=>`
+   <div class="teamrow">
+    <span style="flex:1"><b>${esc(p.name)}</b><div class="notice">${esc(p.team)}</div></span>
+    <span>🟨 ${p.stats.yellow}</span>
+    <span>🟥 ${p.stats.red}</span>
+   </div>`).join('')||'<p class="empty">Todavía no hay tarjetas.</p>'}
+ </div>
+ `);
+}
+
+function awardsPage(){
+ shell('Premios',`
+ <div class="eyebrow">GALA INDIVIDUAL</div>
+ <h1>Premios</h1>
+ <div class="card">
+  <h2>Premios de la temporada ${season}</h2>
+  ${awards.filter(a=>a.season===season).map(a=>`
+   <div class="teamrow">
+    <span style="flex:1">
+     <b>🏆 ${esc(a.title)}</b>
+     <div class="notice">${esc(a.team)}</div>
+    </span>
+    <span class="pill">${esc(a.player)}</span>
+   </div>`).join('')||'<p class="empty">Los premios se generan al cerrar una liga.</p>'}
+ </div>
+ <div class="card">
+  <h2>Récords actuales</h2>
+  ${[
+   ['Máximo goleador','goals'],
+   ['Máximo asistente','assists'],
+   ['Más porterías a cero','cleanSheets']
+  ].map(([label,key])=>{
+   let p=players.slice().sort((a,b)=>b.stats[key]-a.stats[key])[0];
+   return `<div class="teamrow">
+    <span style="flex:1"><b>${label}</b><div class="notice">${p?esc(p.name)+' · '+esc(p.team):'Sin registros'}</div></span>
+    <span class="pill">${p?p.stats[key]:0}</span>
+   </div>`;
+  }).join('')}
+ </div>
+ `);
+}
+
+function stadiumsPage(){
+ shell('Estadios',`
+ <div class="eyebrow">INFRAESTRUCTURA DE CLUBES</div>
+ <h1>Estadios</h1>
+ ${teams.map((t,i)=>`
+  <div class="card">
+   <div class="subhead">
+    <h2>🏟️ ${esc(t.stadium)}</h2>
+    <span class="pill">${t.capacity.toLocaleString()} espectadores</span>
+   </div>
+   <p class="notice">${esc(t.name)}</p>
+   <button class="secondary mini" data-stadium="${i}">Editar estadio</button>
+  </div>`).join('')||'<p class="empty">Crea un club para registrar su estadio.</p>'}
+ `);
+}
+
+
+function render(){
+ nav();
+ ({
+  home,
+  teams:teamsPage,
+  players:playersPage,
+  squads:squadsPage,
+  lineup:lineupPage,
+  comps:compsPage,
+  calendar:calendarPage,
+  matches:matchesPage,
+  discipline:disciplinePage,
+  stats:statsPage,
+  awards:awardsPage,
+  stadiums:stadiumsPage,
+  history:historyPage,
+  settings:settingsPage
+ }[page]||home)();
+}
+
 function fileData(file){return new Promise((res,rej)=>{if(!file)return res('');let r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file)})}
 function closeLeague(i){let c=comps[i];if(c.format!=='Liga')return;let table=standings(c);if(!table.length||!table[0].pj)return toast('Simula partidos antes de cerrar la liga.');let winner=table[0].name;if(!champions.some(x=>x.competition===c.name&&x.season===season)){champions.push({competition:c.name,season,winner});toast('Campeón registrado: '+winner)}let top=players.slice().sort((a,b)=>b.stats.goals-a.stats.goals)[0];if(top&&top.stats.goals>0)awards.push({season,title:'Máximo goleador',player:top.name,team:top.team});let assist=players.slice().sort((a,b)=>b.stats.assists-a.stats.assists)[0];if(assist&&assist.stats.assists>0)awards.push({season,title:'Máximo asistente',player:assist.name,team:assist.team});save()}
 function advanceSeason(){if(!confirm('¿Cerrar la temporada y aplicar ascensos y descensos?'))return;let divisions=[...new Set(teams.map(t=>t.division||1))].sort((a,b)=>a-b),max=Math.max(1,...divisions);for(let d of divisions){let clubs=teams.filter(t=>t.division===d);let league=comps.find(c=>c.format==='Liga'&&c.teams.some(n=>clubs.some(t=>t.name===n)));if(!league)continue;let table=standings(league).filter(x=>clubs.some(t=>t.name===x.name));if(table.length<2)continue;if(d>1)table.slice(0,2).forEach(x=>{let t=teams.find(t=>t.name===x.name);if(t)t.division=Math.max(1,d-1)});if(d<max)table.slice(-2).forEach(x=>{let t=teams.find(t=>t.name===x.name);if(t)t.division=d+1})}season++;players.forEach(p=>{p.stats.injury=0;p.stats.suspension=0;p.stats.fatigue=0;p.stats.yellow=0;p.stats.red=0});save();toast('Temporada '+season+' iniciada.')}
@@ -114,6 +386,11 @@ document.addEventListener('submit',async e=>{
  if(f.id==='friendly'){e.preventDefault();let d=new FormData(f);play(d.get('home'),d.get('away'))}
 });
 document.addEventListener('change',async e=>{
+ 
+if(e.target.id==='lineupTeam'){
+ selectedTeam=e.target.value;
+ render();
+}
  if(e.target.id==='import'&&e.target.files[0]){try{let d=JSON.parse(await e.target.files[0].text());if(!Array.isArray(d.teams)||!Array.isArray(d.players)||!Array.isArray(d.comps)||!Array.isArray(d.matches))throw Error();teams=d.teams;players=d.players.map(initPlayer);comps=d.comps;matches=d.matches;champions=Array.isArray(d.champions)?d.champions:[];awards=Array.isArray(d.awards)?d.awards:[];season=+d.season||2026;teams.forEach(t=>{t.stadium=t.stadium||'Estadio Municipal';t.capacity=t.capacity||25000;t.division=t.division||1});save();toast('Respaldo importado.')}catch{toast('El archivo no es válido.')}}});
 if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 render();
