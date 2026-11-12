@@ -1234,7 +1234,17 @@ if(e.target.id==='lineupTeam'){
  selectedTeam=e.target.value;
  render();
 }
- if(e.target.id==='import'&&e.target.files[0]){try{let d=JSON.parse(await e.target.files[0].text());if(!Array.isArray(d.teams)||!Array.isArray(d.players)||!Array.isArray(d.comps)||!Array.isArray(d.matches))throw Error();teams=d.teams;players=d.players.map(initPlayer);comps=d.comps;matches=d.matches;champions=Array.isArray(d.champions)?d.champions:[];awards=Array.isArray(d.awards)?d.awards:[];season=+d.season||2026;teams.forEach(t=>{t.stadium=t.stadium||'Estadio Municipal';t.capacity=t.capacity||25000;t.division=t.division||1});save();toast('Respaldo importado.')}catch{toast('El archivo no es válido.')}}});
+ if(e.target.id==='import'&&e.target.files[0]){try{let d=JSON.parse(await e.target.files[0].text());if(!Array.isArray(d.teams)||!Array.isArray(d.players)||!Array.isArray(d.comps)||!Array.isArray(d.matches))throw Error();teams=d.teams;players=d.players.map(initPlayer);comps=d.comps;matches=d.matches;champions=Array.isArray(d.champions)?d.champions:[];awards=Array.isArray(d.awards)?d.awards:[];season=+d.season||2026;settings={
+ ...DEFAULT_SETTINGS,
+ ...(d.settings||{})
+};
+
+settings.tactics={
+ ...DEFAULT_SETTINGS.tactics,
+ ...(d.settings?.tactics||{})
+};
+
+applyTheme();teams.forEach(t=>{t.stadium=t.stadium||'Estadio Municipal';t.capacity=t.capacity||25000;t.division=t.division||1});save();toast('Respaldo importado.')}catch{toast('El archivo no es válido.')}}});
 if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 render();
 </script>
