@@ -1,5 +1,5 @@
 
-const CACHE = 'soccer-sim-2026-v20';
+const CACHE = 'soccer-sim-2026-v21';
 
 const FILES = [
   './',
