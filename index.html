@@ -253,9 +253,31 @@ function copyMatchReport(){
 
  const report=matchReportText(match);
 
- navigator.clipboard.writeText(report)
-  .then(()=>toast('¡Informe copiado para Discord!'))
-  .catch(()=>toast('No se pudo copiar el informe.'));
+ if(navigator.clipboard && navigator.clipboard.writeText){
+  navigator.clipboard.writeText(report)
+   .then(()=>toast('¡Informe copiado para Discord!'))
+   .catch(()=>copyFallback(report));
+ }else{
+  copyFallback(report);
+ }
+}
+
+function copyFallback(text){
+ const area=document.createElement('textarea');
+ area.value=text;
+ area.style.position='fixed';
+ area.style.opacity='0';
+ document.body.appendChild(area);
+ area.select();
+
+ try{
+  const copied=document.execCommand('copy');
+  toast(copied?'¡Informe copiado para Discord!':'No se pudo copiar el informe.');
+ }catch(error){
+  toast('No se pudo copiar el informe.');
+ }
+
+ area.remove();
 }
  function generateMatchActions(home,away,hline,aline,hg,ag,subs){
  const events=[];
@@ -342,14 +364,20 @@ function play(home,away,competition='',fixture=null){
  function makeSubs(line,bench,club){
   let count=Math.min(5,bench.length,Math.floor(Math.random()*4)+2);
   for(let i=0;i<count;i++){
-   let index=Math.floor(Math.random()*line.length);
+   let available=line
+  .map((p,index)=>({p,index}))
+  .filter(x=>x.p.position===bench[i].position);
+
+if(!available.length)available=line.map((p,index)=>({p,index}));
+
+let index=available[Math.floor(Math.random()*available.length)].index;
    let out=line[index],incoming=bench[i];
    if(!out||!incoming)continue;
 
    let minute=55+Math.floor(Math.random()*34);
    line[index]=incoming;
    used.add(incoming.id);
-
+   incoming.stats.apps++;
    performance[out.id].minutes=minute;
    performance[incoming.id]={
     playerId:incoming.id,name:incoming.name,team:club,
@@ -593,16 +621,6 @@ function play(home,away,competition='',fixture=null){
 
  save();
  toast(`Final: ${home} ${hg} - ${ag} ${away}`);
-}
-
- if(ag===0){let gk=hline.find(p=>p.position==='POR');if(gk)gk.stats.cleanSheets++}
- if(hg===0){let gk=aline.find(p=>p.position==='POR');if(gk)gk.stats.cleanSheets++}
- finishMatchRecovery(used);
- events.sort((a,b)=>(a.minute||0)-(b.minute||0));
- let match={id:uid(),home,away,a:hg,b:ag,competition,date:new Date().toLocaleString('es'),events,subs};
- matches.push(match);
- if(fixture){fixture.status='Jugado';fixture.scoreHome=hg;fixture.scoreAway=ag;fixture.matchId=match.id}
- save();toast(`Final: ${home} ${hg} - ${ag} ${away}`);
 }
 function tableStand(c){let r=standings(c);return r.length?`<div class="tablewrap"><table><thead><tr><th>#</th><th>Club</th><th>PJ</th><th>G</th><th>E</th><th>P</th><th>GF</th><th>GC</th><th>DG</th><th>PTS</th></tr></thead><tbody>${r.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${x.pj}</td><td>${x.g}</td><td>${x.e}</td><td>${x.p}</td><td>${x.gf}</td><td>${x.gc}</td><td>${x.gf-x.gc}</td><td><b>${x.pts}</b></td></tr>`).join('')}</tbody></table></div>`:'<p class="empty">Inscribe al menos dos clubes.</p>'}
 function home(){shell('Centro de operaciones',`<section class="hero"><div class="eyebrow">SOCCER SIMULATOR 2026 · V2.1</div><h1>Tu fútbol.<br>Tus reglas.</h1><p>Gestiona clubes, jugadores, temporadas, lesiones, disciplina y competiciones.</p><div class="actions"><button data-go="teams">＋ Crear club</button><button class="secondary" data-go="players">Crear jugador</button><button class="secondary" data-go="comps">Crear competición</button></div></section><div class="grid"><div class="stat"><small>CLUBES</small><strong>${teams.length}</strong></div><div class="stat"><small>JUGADORES</small><strong>${players.length}</strong></div><div class="stat"><small>COMPETICIONES</small><strong>${comps.length}</strong></div><div class="stat"><small>PARTIDOS</small><strong>${matches.length}</strong></div></div><div class="card"><h2>Temporada ${season}</h2><p class="notice">Jugadores lesionados: ${players.filter(p=>p.stats.injury>0).length} · Suspendidos: ${players.filter(p=>p.stats.suspension>0).length}</p><button data-go="calendar">Ver calendario</button></div><div class="card"><h2>Últimos resultados</h2>${matches.length?matches.slice(-5).reverse().map(m=>`<div class="fixture"><span>${esc(m.home)}</span><b class="score">${m.a} - ${m.b}</b><span class="away">${esc(m.away)}</span></div>`).join(''):'<p class="empty">Aún no hay partidos.</p>'}</div>`)}
