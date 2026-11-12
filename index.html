@@ -512,10 +512,10 @@ let index=available[Math.floor(Math.random()*available.length)].index;
    });
   }
  }
-
+if(settings.substitutions){
  makeSubs(hline,hBench,home);
  makeSubs(aline,aBench,away);
-
+}
  // Goles y asistencias
  for(const [club,num,line] of [[home,hg,hline],[away,ag,aline]]){
   for(let i=0;i<num;i++){
