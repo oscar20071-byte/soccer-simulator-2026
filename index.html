@@ -272,23 +272,303 @@ function copyMatchReport(){
  events.sort((a,b)=>a.minute-b.minute);
  return events;
 }
- function play(home,away,competition='',fixture=null){
+ 
+function play(home,away,competition='',fixture=null){
  if(home===away)return toast('Elige dos clubes diferentes.');
- let hTeam=teams.find(t=>t.name===home),aTeam=teams.find(t=>t.name===away);
- let hs=clubPlayers(home).filter(p=>!p.stats.injury&&!p.stats.suspension).sort((a,b)=>b.rating-a.rating),as=clubPlayers(away).filter(p=>!p.stats.injury&&!p.stats.suspension).sort((a,b)=>b.rating-a.rating);
- let hline=hs.slice(0,11),aline=as.slice(0,11),used=new Set([...hline,...aline].map(p=>p.id)),events=[],subs=[];
- function changes(line,bench,club){let count=0;for(let i=0;i<line.length&&count<5;i++){let p=line[i];if(p.stats.fatigue<55&&Math.random()>.12)continue;let replacement=bench.find(x=>!used.has(x.id));if(!replacement)continue;used.delete(p.id);used.add(replacement.id);line[i]=replacement;subs.push({club,out:p.name,in:replacement.name,minute:55+Math.floor(Math.random()*31)});count++}}
- changes(hline,hs.slice(11),home);changes(aline,as.slice(11),away);
- let hPower=hline.reduce((s,p)=>s+p.rating*(1-p.stats.fatigue/180),0)/(hline.length||1),aPower=aline.reduce((s,p)=>s+p.rating*(1-p.stats.fatigue/180),0)/(aline.length||1);
- let hg=poisson(Math.max(.2,Math.min(3.5,1.25+(hPower-aPower)/45+.18))),ag=poisson(Math.max(.2,Math.min(3.5,1.15+(aPower-hPower)/45)));
- for(let [club,num,line] of [[home,hg,hline],[away,ag,aline]])for(let i=0;i<num;i++){let scorer=line.filter(p=>p.position!=='POR').sort((a,b)=>b.rating-a.rating)[Math.floor(Math.random()*Math.min(5,line.length))]||line[0];if(!scorer)continue;let assist=Math.random()<.7?line.find(p=>p.id!==scorer.id&&p.position!=='POR'):null;scorer.stats.goals++;if(assist)assist.stats.assists++;events.push({minute:1+Math.floor(Math.random()*90),team:club,scorerId:scorer.id,assistId:assist?.id||null})}
- // Disciplina, lesiones y porterías a cero
- for(let p of [...hline,...aline]){
-   if(Math.random()<.16){p.stats.yellow++;events.push({minute:Math.floor(Math.random()*90)+1,type:'Amarilla',player:p.name,team:p.team});if(p.stats.yellow%5===0){p.stats.suspension++;events.push({type:'Suspensión',player:p.name,team:p.team})}}
-   if(Math.random()<.018){p.stats.red++;p.stats.suspension=Math.max(p.stats.suspension,1);events.push({minute:Math.floor(Math.random()*90)+1,type:'Roja',player:p.name,team:p.team})}
-   if(Math.random()<.025){p.stats.injury=1+Math.floor(Math.random()*3);events.push({type:'Lesión',player:p.name,team:p.team})}
-   p.stats.apps++;
+
+ const hPlayers=clubPlayers(home).filter(p=>!p.stats.injury&&!p.stats.suspension).sort((a,b)=>b.rating-a.rating);
+ const aPlayers=clubPlayers(away).filter(p=>!p.stats.injury&&!p.stats.suspension).sort((a,b)=>b.rating-a.rating);
+
+ if(hPlayers.length<11||aPlayers.length<11)
+  return toast('Cada equipo necesita 11 jugadores disponibles.');
+
+ let hline=hPlayers.slice(0,11);
+ let aline=aPlayers.slice(0,11);
+ let hBench=hPlayers.slice(11);
+ let aBench=aPlayers.slice(11);
+
+ let events=[],subs=[],used=new Set([...hline,...aline].map(p=>p.id));
+ let performance={};
+
+ function prepare(line,club){
+  line.forEach(p=>{
+   performance[p.id]={
+    playerId:p.id,name:p.name,team:club,
+    goals:0,assists:0,shots:0,shotsOnTarget:0,
+    passes:0,passesCompleted:0,tackles:0,
+    interceptions:0,recoveries:0,dribbles:0,
+    dribblesCompleted:0,fouls:0,saves:0,
+    minutes:90,rating:6.0
+   };
+  });
  }
+
+ prepare(hline,home);
+ prepare(aline,away);
+
+ let hPower=hline.reduce((s,p)=>s+p.rating*(1-p.stats.fatigue/180),0)/11;
+ let aPower=aline.reduce((s,p)=>s+p.rating*(1-p.stats.fatigue/180),0)/11;
+
+ let hg=poisson(Math.max(.2,Math.min(3.5,1.25+(hPower-aPower)/45+.18)));
+ let ag=poisson(Math.max(.2,Math.min(3.5,1.15+(aPower-hPower)/45)));
+
+ // Sustituciones
+ function makeSubs(line,bench,club){
+  let count=Math.min(5,bench.length,Math.floor(Math.random()*4)+2);
+  for(let i=0;i<count;i++){
+   let index=Math.floor(Math.random()*line.length);
+   let out=line[index],incoming=bench[i];
+   if(!out||!incoming)continue;
+
+   let minute=55+Math.floor(Math.random()*34);
+   line[index]=incoming;
+   used.add(incoming.id);
+
+   performance[out.id].minutes=minute;
+   performance[incoming.id]={
+    playerId:incoming.id,name:incoming.name,team:club,
+    goals:0,assists:0,shots:0,shotsOnTarget:0,
+    passes:0,passesCompleted:0,tackles:0,
+    interceptions:0,recoveries:0,dribbles:0,
+    dribblesCompleted:0,fouls:0,saves:0,
+    minutes:90-minute,rating:6.0
+   };
+
+   subs.push({club,out:out.name,in:incoming.name,minute});
+   events.push({
+    minute,type:'Sustitución',team:club,
+    player:out.name,
+    description:`Entra ${incoming.name} por ${out.name}`
+   });
+  }
+ }
+
+ makeSubs(hline,hBench,home);
+ makeSubs(aline,aBench,away);
+
+ // Goles y asistencias
+ for(const [club,num,line] of [[home,hg,hline],[away,ag,aline]]){
+  for(let i=0;i<num;i++){
+   let attackers=line.filter(p=>p.position!=='POR');
+   let scorer=attackers[Math.floor(Math.random()*attackers.length)];
+   if(!scorer)continue;
+
+   let assist=null;
+   if(Math.random()<.72){
+    let possible=line.filter(p=>p.id!==scorer.id&&p.position!=='POR');
+    assist=possible[Math.floor(Math.random()*possible.length)]||null;
+   }
+
+   let minute=1+Math.floor(Math.random()*90);
+   performance[scorer.id].goals++;
+   performance[scorer.id].shots++;
+   performance[scorer.id].shotsOnTarget++;
+
+   scorer.stats.goals++;
+   scorer.stats.shots++;
+   scorer.stats.shotsOnTarget++;
+
+   if(assist){
+    performance[assist.id].assists++;
+    assist.stats.assists++;
+   }
+
+   events.push({
+    minute,type:'Gol',team:club,
+    player:scorer.name,
+    scorerId:scorer.id,
+    assistId:assist?.id||null,
+    description:assist
+     ?`¡GOOOL de ${scorer.name}! Asistencia de ${assist.name}.`
+     :`¡GOOOL de ${scorer.name}! Sin asistencia.`
+   });
+  }
+ }
+
+ // Acciones de fútbol
+ let actions=[
+  'realiza un pase preciso',
+  'intenta un regate',
+  'recupera el balón',
+  'intercepta un pase',
+  'realiza un centro al área',
+  'despeja el balón',
+  'gana un duelo',
+  'intenta un disparo',
+  'realiza una entrada',
+  'crea una ocasión de peligro'
+ ];
+
+ for(const [club,line] of [[home,hline],[away,aline]]){
+  for(let i=0;i<16;i++){
+   let p=line[Math.floor(Math.random()*line.length)];
+   if(!p)continue;
+
+   let stat=performance[p.id];
+   let action=actions[Math.floor(Math.random()*actions.length)];
+   let minute=1+Math.floor(Math.random()*90);
+
+   if(action.includes('pase')){
+    stat.passes++;
+    p.stats.passes++;
+    if(Math.random()<.85){
+     stat.passesCompleted++;
+     p.stats.passesCompleted++;
+    }
+   }
+   if(action.includes('regate')){
+    stat.dribbles++;
+    p.stats.dribbles++;
+    if(Math.random()<.65){
+     stat.dribblesCompleted++;
+     p.stats.dribblesCompleted++;
+    }
+   }
+   if(action.includes('recupera')){
+    stat.recoveries++;
+    p.stats.recoveries++;
+   }
+   if(action.includes('intercepta')){
+    stat.interceptions++;
+    p.stats.interceptions++;
+   }
+   if(action.includes('entrada')){
+    stat.tackles++;
+    p.stats.tackles++;
+   }
+   if(action.includes('disparo')){
+    stat.shots++;
+    p.stats.shots++;
+    if(Math.random()<.5){
+     stat.shotsOnTarget++;
+     p.stats.shotsOnTarget++;
+    }
+   }
+
+   events.push({
+    minute,type:'Acción',team:club,
+    player:p.name,description:`${p.name} ${action}.`
+   });
+  }
+ }
+
+ // Tarjetas y lesiones
+ for(const [club,line] of [[home,hline],[away,aline]]){
+  for(const p of line){
+   let stat=performance[p.id];
+
+   if(Math.random()<.20){
+    stat.fouls++;
+    p.stats.fouls++;
+    let minute=1+Math.floor(Math.random()*90);
+    events.push({
+     minute,type:'Falta',team:club,
+     player:p.name,description:`Falta cometida por ${p.name}.`
+    });
+
+    if(Math.random()<.48){
+     p.stats.yellow++;
+     events.push({
+      minute,type:'Amarilla',team:club,
+      player:p.name,description:`Tarjeta amarilla para ${p.name}.`
+     });
+    }
+   }
+
+   if(Math.random()<.012){
+    p.stats.red++;
+    p.stats.suspension=Math.max(p.stats.suspension,1);
+    events.push({
+     minute:1+Math.floor(Math.random()*90),
+     type:'Roja',team:club,player:p.name,
+     description:`Tarjeta roja para ${p.name}.`
+    });
+   }
+
+   if(Math.random()<.025){
+    p.stats.injury=1+Math.floor(Math.random()*3);
+    events.push({
+     minute:1+Math.floor(Math.random()*90),
+     type:'Lesión',team:club,player:p.name,
+     description:`${p.name} sufre una lesión.`
+    });
+   }
+  }
+ }
+
+ // Porterías a cero y apariciones
+ if(ag===0){
+  let gk=hline.find(p=>p.position==='POR');
+  if(gk)gk.stats.cleanSheets++;
+ }
+ if(hg===0){
+  let gk=aline.find(p=>p.position==='POR');
+  if(gk)gk.stats.cleanSheets++;
+ }
+
+ for(const p of [...hPlayers.slice(0,11),...aPlayers.slice(0,11)]){
+  p.stats.apps++;
+ }
+
+ // Valoraciones individuales
+ for(const s of Object.values(performance)){
+  let rating=6+s.goals*1.5+s.assists*1.0+
+   s.shotsOnTarget*.15+s.passesCompleted*.015+
+   s.tackles*.08+s.interceptions*.08+
+   s.recoveries*.04+s.dribblesCompleted*.08-
+   s.fouls*.08;
+
+  s.rating=Math.max(1,Math.min(10,Number(rating.toFixed(1))));
+  let player=players.find(p=>p.id===s.playerId);
+  if(player){
+   player.stats.minutes+=s.minutes;
+   player.stats.rating=s.rating;
+   player.stats.shots+=s.shots;
+   player.stats.shotsOnTarget+=s.shotsOnTarget;
+   player.stats.passes+=s.passes;
+   player.stats.passesCompleted+=s.passesCompleted;
+   player.stats.tackles+=s.tackles;
+   player.stats.interceptions+=s.interceptions;
+   player.stats.recoveries+=s.recoveries;
+   player.stats.dribbles+=s.dribbles;
+   player.stats.dribblesCompleted+=s.dribblesCompleted;
+   player.stats.fouls+=s.fouls;
+  }
+ }
+
+ let playerList=Object.values(performance);
+ let mvp=playerList.sort((a,b)=>b.rating-a.rating)[0];
+
+ if(mvp){
+  let best=players.find(p=>p.id===mvp.playerId);
+  if(best)best.stats.motm++;
+ }
+
+ finishMatchRecovery(used);
+
+ events.sort((a,b)=>a.minute-b.minute);
+
+ let match={
+  id:uid(),home,away,a:hg,b:ag,competition,
+  date:new Date().toLocaleString('es'),
+  events,subs,
+  playerStats:playerList,
+  mvp:mvp?.name||'Sin MVP'
+ };
+
+ matches.push(match);
+
+ if(fixture){
+  fixture.status='Jugado';
+  fixture.scoreHome=hg;
+  fixture.scoreAway=ag;
+  fixture.matchId=match.id;
+ }
+
+ save();
+ toast(`Final: ${home} ${hg} - ${ag} ${away}`);
+}
+
  if(ag===0){let gk=hline.find(p=>p.position==='POR');if(gk)gk.stats.cleanSheets++}
  if(hg===0){let gk=aline.find(p=>p.position==='POR');if(gk)gk.stats.cleanSheets++}
  finishMatchRecovery(used);
