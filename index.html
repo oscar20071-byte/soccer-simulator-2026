@@ -96,6 +96,14 @@
 <script>
 const KEY='ss26v21_';
 
+function read(k,d){
+ try{
+  return JSON.parse(localStorage.getItem(KEY+k)) ?? d;
+ }catch{
+  return d;
+ }
+}
+
 const pages=[
  ['home','⌂','Inicio'],
  ['teams','◈','Clubes'],
