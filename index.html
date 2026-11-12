@@ -170,7 +170,26 @@ function cupSchedule(c){let pool=[...c.teams].sort(()=>Math.random()-.5),fs=[],r
 function poisson(l){let z=Math.exp(-l),k=0,p=1;do{k++;p*=Math.random()}while(p>z&&k<8);return Math.min(7,k-1)}
 function pick(team,exclude=[]){let a=clubPlayers(team).filter(p=>!exclude.includes(p.id)&&!p.stats.injury&&!p.stats.suspension);if(!a.length)return null;let w=a.map(p=>({p,w:Math.max(1,p.rating*(1-p.stats.fatigue/180))})),sum=w.reduce((s,x)=>s+x.w,0),r=Math.random()*sum;for(let x of w){r-=x.w;if(r<=0)return x.p}return w[0].p}
 function finishMatchRecovery(used){players.forEach(p=>{if(used.has(p.id)){p.stats.fatigue=Math.min(100,p.stats.fatigue+24);p.stats.form=Math.max(20,Math.min(100,p.stats.form+(Math.random()*8-2)))}else{p.stats.fatigue=Math.max(0,p.stats.fatigue-15);if(p.stats.injury>0)p.stats.injury--;if(p.stats.suspension>0)p.stats.suspension--}})}
-function play(home,away,competition='',fixture=null){
+function calculatePlayerRating(p){
+ let s=p.stats;
+ let rating=6.0;
+
+ rating+=s.goals*1.5;
+ rating+=s.assists*1.0;
+ rating+=s.shotsOnTarget*.15;
+ rating+=s.passesCompleted*.015;
+ rating+=s.tackles*.08;
+ rating+=s.interceptions*.08;
+ rating+=s.recoveries*.04;
+ rating+=s.dribblesCompleted*.08;
+ rating+=s.saves*.15;
+ rating-=s.fouls*.08;
+ rating-=s.yellow*.35;
+ rating-=s.red*1.5;
+
+ return Math.max(1,Math.min(10,Number(rating.toFixed(1))));
+}
+ function play(home,away,competition='',fixture=null){
  if(home===away)return toast('Elige dos clubes diferentes.');
  let hTeam=teams.find(t=>t.name===home),aTeam=teams.find(t=>t.name===away);
  let hs=clubPlayers(home).filter(p=>!p.stats.injury&&!p.stats.suspension).sort((a,b)=>b.rating-a.rating),as=clubPlayers(away).filter(p=>!p.stats.injury&&!p.stats.suspension).sort((a,b)=>b.rating-a.rating);
