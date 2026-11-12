@@ -570,6 +570,7 @@ if(settings.substitutions){
  ];
 
  for(const [club,line] of [[home,hline],[away,aline]]){
+if(settings.actions){
   for(let i=0;i<16;i++){
    let p=line[Math.floor(Math.random()*line.length)];
    if(!p)continue;
@@ -621,7 +622,7 @@ if(settings.substitutions){
    });
   }
  }
-
+}
  // Tarjetas y lesiones
  for(const [club,line] of [[home,hline],[away,aline]]){
   for(const p of line){
