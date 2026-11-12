@@ -584,7 +584,91 @@ function teamsPage(){shell('Clubes',`<div class="eyebrow">GESTIÓN DE CLUBES Y E
 function playersPage(){let rows=players.map(p=>`<tr><td>${avatar(p)} ${esc(p.name)}</td><td>${esc(p.team)}</td><td>${p.position}</td><td>${p.rating}</td><td>${p.stats.goals}</td><td>${p.stats.assists}</td><td>${p.stats.fatigue}%</td><td>${p.stats.injury?'Lesionado ('+p.stats.injury+')':'Disponible'}</td><td>${p.stats.suspension?'Suspendido ('+p.stats.suspension+')':'—'}</td><td>${p.stats.yellow}</td><td>${p.stats.cleanSheets}</td><td><button class="danger mini" data-del-player="${p.id}">Quitar</button></td></tr>`).join('');shell('Jugadores',`<div class="eyebrow">PLANTILLAS, ESTADO FÍSICO Y DISCIPLINA</div><h1>Jugadores</h1><div class="card"><h2>Registrar futbolista</h2>${teams.length?`<form id="playerForm"><div class="row"><div class="field"><label>Nombre</label><input name="name" required maxlength="48"></div><div class="field"><label>País</label><input name="country"></div><div class="field"><label>Club</label><select name="team">${teams.map(t=>`<option>${esc(t.name)}</option>`).join('')}</select></div><div class="field"><label>Fotografía</label><input name="photo" type="file" accept="image/*"></div></div><div class="row"><div class="field"><label>Edad</label><input name="age" type="number" min="15" max="50" value="20"></div><div class="field"><label>Posición</label><select name="position">${['POR','DFC','LI','LD','MCD','MC','MCO','EI','ED','DC'].map(x=>`<option>${x}</option>`).join('')}</select></div><div class="field"><label>Dorsal</label><input name="number" type="number" min="1" max="99" value="10"></div><div class="field"><label>Media</label><input name="rating" type="number" min="1" max="100" value="75"></div><button>Guardar jugador</button></div></form>`:'<p class="empty">Primero crea un club.</p>'}</div><div class="card"><h2>Plantillas y estado de jugadores</h2><div class="tablewrap"><table><thead><tr><th>Jugador</th><th>Club</th><th>Pos.</th><th>Media</th><th>G</th><th>A</th><th>Fatiga</th><th>Lesión</th><th>Sanción</th><th>Amarillas</th><th>Porterías a cero</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>`)}
 function compsPage(){shell('Competiciones',`<div class="eyebrow">LIGAS Y COPAS</div><h1>Competiciones</h1><div class="card"><h2>Nueva competición</h2><form id="compForm"><div class="row"><div class="field"><label>Nombre</label><input name="name" required></div><div class="field"><label>Formato</label><select name="format"><option>Liga</option><option>Copa</option></select></div><div class="field"><label>Calendario de liga</label><select name="legs"><option value="1">Una vuelta</option><option value="2">Ida y vuelta</option></select></div><button>Crear</button></div></form></div>${comps.map((c,i)=>`<div class="card"><div class="subhead"><h2>${esc(c.name)}</h2><button class="danger mini" data-del-comp="${i}">Eliminar</button></div><p class="notice">${c.format} · ${c.teams.length} clubes · ${c.fixtures.length} partidos</p><form class="enroll" data-ci="${i}"><div class="row"><div class="field"><label>Inscribir club</label><select name="team">${teams.filter(t=>!c.teams.includes(t.name)).map(t=>`<option>${esc(t.name)}</option>`).join('')}</select></div><button ${!teams.some(t=>!c.teams.includes(t.name))||c.fixtures.length?'disabled':''}>Inscribir</button></div></form><div class="actions"><button class="secondary" data-gen="${i}" ${c.teams.length<2||c.fixtures.length?'disabled':''}>Generar ${c.format==='Copa'?'eliminatorias':'calendario'}</button>${c.format==='Liga'?`<button data-close-season="${i}">Cerrar liga y premiar campeón</button>`:''}</div>${c.format==='Liga'?`<h3>Clasificación</h3>${tableStand(c)}`:''}<p class="notice">Inscritos: ${c.teams.map(esc).join(' · ')||'ninguno'}</p></div>`).join('')||'<p class="empty">Todavía no hay competiciones.</p>'}`)}
 function calendarPage(){shell('Calendario',`<div class="eyebrow">PARTIDOS Y JORNADAS</div><h1>Calendario</h1>${comps.map((c,i)=>`<div class="card"><h2>${esc(c.name)}</h2>${c.fixtures.map(f=>`<div class="fixture"><span>J${f.round} · ${esc(f.home)}</span><b class="score">${f.status==='Jugado'?`${f.scoreHome} - ${f.scoreAway}`:'VS'}</b><span class="away">${esc(f.away)}</span>${f.status==='Jugado'?'<span class="pill">Jugado</span>':`<button class="mini" data-play="${i}|${f.id}">Simular</button>`}</div>`).join('')||'<p class="empty">Genera el calendario en Competiciones.</p>'}</div>`).join('')||'<p class="empty">Crea una competición.</p>'}`)}
-function matchesPage(){shell('Partidos',`<div class="eyebrow">SIMULACIÓN</div><h1>Centro de partido</h1><div class="card"><h2>Partido amistoso</h2>${teams.length>=2?`<form id="friendly"><div class="row"><div class="field"><label>Local</label><select name="home">${teams.map(t=>`<option>${esc(t.name)}</option>`).join('')}</select></div><div class="field"><label>Visitante</label><select name="away">${teams.map((t,i)=>`<option ${i===1?'selected':''}>${esc(t.name)}</option>`).join('')}</select></div><button>Simular partido</button></div></form>`:'<p class="empty">Crea al menos dos clubes.</p>'}</div><div class="card"><h2>Reglas de partido v2.1</h2><p class="notice">Hasta 5 sustituciones automáticas por equipo. Se consideran fatiga y disponibilidad. Se registran goles, asistencias, tarjetas, lesiones y porterías a cero.</p></div></div>`)}
+
+function matchesPage(){
+ const last=matches[matches.length-1];
+
+ shell('Partidos',`
+ <div class="eyebrow">SOCCER SIMULATOR 2026</div>
+ <h1>Centro de partido</h1>
+
+ <div class="card">
+  <h2>Partido amistoso</h2>
+  ${teams.length>=2?`
+   <form id="friendly">
+    <div class="row">
+     <div class="field">
+      <label>Local</label>
+      <select name="home">
+       ${teams.map(t=>`<option>${esc(t.name)}</option>`).join('')}
+      </select>
+     </div>
+     <div class="field">
+      <label>Visitante</label>
+      <select name="away">
+       ${teams.map((t,i)=>`<option ${i===1?'selected':''}>${esc(t.name)}</option>`).join('')}
+      </select>
+     </div>
+     <button>Simular partido</button>
+    </div>
+   </form>
+  `:'<p class="empty">Crea al menos dos clubes.</p>'}
+ </div>
+
+ ${last?`
+ <div class="card">
+  <div class="eyebrow">ÚLTIMO RESULTADO</div>
+  <h2>${esc(last.home)} ${last.a} - ${last.b} ${esc(last.away)}</h2>
+  <p>${esc(last.competition||'Partido amistoso')} · ${esc(last.date)}</p>
+
+  <button onclick="copyMatchReport()">📋 COPIAR INFORME PARA DISCORD</button>
+
+  <h3>⚽ Goles y asistencias</h3>
+  ${last.events.filter(e=>e.type==='Gol').length?
+   last.events.filter(e=>e.type==='Gol').sort((a,b)=>a.minute-b.minute).map(e=>`
+    <p>${e.minute}' ⚽ <b>${esc(e.player)}</b> (${esc(e.team)}) 
+    ${e.assistId?' — Asistencia: '+esc(players.find(p=>p.id===e.assistId)?.name||'Desconocido'):' — Sin asistencia'}</p>
+   `).join('')
+   :'<p>Sin goles.</p>'}
+
+  <h3>📋 Cronología</h3>
+  ${last.events.slice().sort((a,b)=>a.minute-b.minute).map(e=>`
+   <p><b>${e.minute}'</b> ${esc(e.description||e.type)} 
+   <small>(${esc(e.team||'')})</small></p>
+  `).join('')}
+
+  <h3>⭐ Valoraciones individuales</h3>
+  <div style="overflow-x:auto">
+   <table>
+    <thead>
+     <tr><th>Jugador</th><th>Equipo</th><th>G</th><th>A</th><th>Min.</th><th>Nota</th></tr>
+    </thead>
+    <tbody>
+     ${(last.playerStats||[]).slice().sort((a,b)=>b.rating-a.rating).map(p=>`
+      <tr>
+       <td>${esc(p.name)}</td>
+       <td>${esc(p.team)}</td>
+       <td>${p.goals}</td>
+       <td>${p.assists}</td>
+       <td>${p.minutes}</td>
+       <td><b>${p.rating.toFixed(1)}</b></td>
+      </tr>
+     `).join('')}
+    </tbody>
+   </table>
+  </div>
+
+  <h3>🏆 MVP del partido</h3>
+  <p><b>${esc(last.mvp||'Sin MVP')}</b></p>
+ </div>
+ `:''}
+
+ <div class="card">
+  <h2>Reglas de partido v2.1</h2>
+  <p class="notice">Simulaciones con goles, asistencias, acciones, lesiones, tarjetas, sustituciones y valoraciones individuales.</p>
+ </div>
+ `);
+}
 function statsPage(){let rank=k=>players.slice().sort((a,b)=>b.stats[k]-a.stats[k]).slice(0,10).map((p,i)=>`<div class="teamrow"><span style="flex:1">${i+1}. <b>${esc(p.name)}</b><div class="notice">${esc(p.team)}</div></span><span class="pill">${p.stats[k]}</span></div>`).join('')||'<p class="empty">Sin datos.</p>';shell('Estadísticas',`<div class="eyebrow">RENDIMIENTO</div><h1>Estadísticas</h1><div class="two"><div class="card"><h2>Goleadores</h2>${rank('goals')}</div><div class="card"><h2>Asistentes</h2>${rank('assists')}</div><div class="card"><h2>Porterías a cero</h2>${rank('cleanSheets')}</div><div class="card"><h2>Partidos disputados</h2>${rank('apps')}</div></div><div class="card"><h2>Premios individuales de la temporada ${season}</h2>${awards.filter(a=>a.season===season).map(a=>`<p>🏆 ${esc(a.title)}: <b>${esc(a.player)}</b> (${esc(a.team)})</p>`).join('')||'<p class="empty">Los premios se generan al cerrar una liga.</p>'}</div>`)}
 function historyPage(){shell('Historial',`<div class="eyebrow">ARCHIVO DE TEMPORADAS</div><h1>Historial</h1><div class="card"><h2>Campeones</h2>${champions.map(c=>`<div class="teamrow"><span style="flex:1"><b>${esc(c.competition)}</b><div class="notice">Temporada ${c.season}</div></span><span class="pill">${esc(c.winner)}</span></div>`).join('')||'<p class="empty">Todavía no hay campeones registrados.</p>'}</div><div class="card"><h2>Resultados recientes</h2>${matches.slice().reverse().slice(0,30).map(m=>`<div class="fixture"><span>${esc(m.home)}</span><b class="score">${m.a} - ${m.b}</b><span class="away">${esc(m.away)}</span></div><p class="notice">${esc(m.competition||'Amistoso')} · ${esc(m.date)}</p>`).join('')||'<p class="empty">Sin partidos.</p>'}</div>`)}
 function settingsPage(){shell('Configuración',`<div class="eyebrow">TEMPORADAS Y RESPALDOS</div><h1>Configuración</h1><div class="card"><h2>Ascensos y descensos</h2><p class="notice">Ascienden los dos primeros de cada división (salvo división 1); descienden los dos últimos (salvo la última división). Se aplica al avanzar la temporada.</p><button id="advance">Cerrar temporada y aplicar ascensos/descensos</button></div><div class="card"><h2>Temporada actual: ${season}</h2><p class="notice">Avanzar temporada cambia el año y recupera a los jugadores de lesiones y suspensiones.</p></div><div class="card"><h2>Respaldos</h2><p class="notice">Exporta o importa los datos de la versión 2.1.</p><div class="actions"><button id="export">Exportar respaldo</button><label class="secondary" style="padding:10px 14px;border-radius:9px;cursor:pointer">Importar respaldo<input id="import" type="file" accept="application/json" hidden></label></div></div><div class="card"><h2>Acerca de</h2><p>Soccer Simulator 2026 · Versión 2.1</p><p class="notice">Los datos se guardan localmente en este navegador.</p></div>`)}
