@@ -125,7 +125,34 @@ let selectedTeam='';
 let teams=read('teams',[]),players=read('players',[]),comps=read('comps',[]),matches=read('matches',[]),champions=read('champions',[]),awards=read('awards',[]),season=read('season',2026),page='home';
 const uid=()=>Math.random().toString(36).slice(2,9)+Date.now().toString(36);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const defaults={apps:0,goals:0,assists:0,cleanSheets:0,yellow:0,red:0,suspension:0,injury:0,fatigue:0,form:70};
+const defaults={
+ apps:0,
+ goals:0,
+ assists:0,
+ cleanSheets:0,
+ yellow:0,
+ red:0,
+ suspension:0,
+ injury:0,
+ fatigue:0,
+ form:70,
+
+ // Estadísticas de partidos
+ minutes:0,
+ shots:0,
+ shotsOnTarget:0,
+ passes:0,
+ passesCompleted:0,
+ tackles:0,
+ interceptions:0,
+ recoveries:0,
+ dribbles:0,
+ dribblesCompleted:0,
+ fouls:0,
+ saves:0,
+ rating:0,
+ motm:0
+};
 function initPlayer(p){p.stats={...defaults,...(p.stats||{})};return p}
 players.forEach(initPlayer);
 teams.forEach(t=>{t.stadium=t.stadium||'Estadio Municipal';t.capacity=t.capacity||25000;t.division=t.division||1});
