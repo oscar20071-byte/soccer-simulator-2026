@@ -1246,6 +1246,7 @@ settings.tactics={
 
 applyTheme();teams.forEach(t=>{t.stadium=t.stadium||'Estadio Municipal';t.capacity=t.capacity||25000;t.division=t.division||1});save();toast('Respaldo importado.')}catch{toast('El archivo no es válido.')}}});
 if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+applyTheme();
 render();
 </script>
 </body>
