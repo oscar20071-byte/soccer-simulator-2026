@@ -231,6 +231,47 @@ function copyMatchReport(){
   .then(()=>toast('¡Informe copiado para Discord!'))
   .catch(()=>toast('No se pudo copiar el informe.'));
 }
+ function generateMatchActions(home,away,hline,aline,hg,ag,subs){
+ const events=[];
+ const actions=[
+  'realiza un pase preciso',
+  'intenta un regate',
+  'recupera el balón',
+  'intercepta un pase',
+  'realiza un centro al área',
+  'despeja el balón',
+  'gana un duelo',
+  'pierde la posesión'
+ ];
+
+ for(const [team,line] of [[home,hline],[away,aline]]){
+  for(let i=0;i<14;i++){
+   const p=line[Math.floor(Math.random()*line.length)];
+   if(!p)continue;
+
+   events.push({
+    minute:1+Math.floor(Math.random()*90),
+    type:'Acción',
+    team,
+    player:p.name,
+    description:actions[Math.floor(Math.random()*actions.length)]
+   });
+  }
+ }
+
+ for(const s of subs){
+  events.push({
+   minute:s.minute,
+   type:'Sustitución',
+   team:s.club,
+   player:s.out,
+   description:`Entra ${s.in} por ${s.out}`
+  });
+ }
+
+ events.sort((a,b)=>a.minute-b.minute);
+ return events;
+}
  function play(home,away,competition='',fixture=null){
  if(home===away)return toast('Elige dos clubes diferentes.');
  let hTeam=teams.find(t=>t.name===home),aTeam=teams.find(t=>t.name===away);
