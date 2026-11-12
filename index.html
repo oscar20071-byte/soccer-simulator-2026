@@ -624,10 +624,12 @@ if(settings.actions){
  }
 }
  // Tarjetas y lesiones
- for(const [club,line] of [[home,hline],[away,aline]]){
-  for(const p of line){
-   let stat=performance[p.id];
+for(const [club,line] of [[home,hline],[away,aline]]){
+ for(const p of line){
+  let stat=performance[p.id];
 
+  // Faltas y tarjetas
+  if(settings.cards){
    if(Math.random()<.20){
     stat.fouls++;
     p.stats.fouls++;
@@ -655,18 +657,19 @@ if(settings.actions){
      description:`Tarjeta roja para ${p.name}.`
     });
    }
+  }
 
-   if(Math.random()<.025){
-    p.stats.injury=1+Math.floor(Math.random()*3);
-    events.push({
-     minute:1+Math.floor(Math.random()*90),
-     type:'Lesión',team:club,player:p.name,
-     description:`${p.name} sufre una lesión.`
-    });
-   }
+  // Lesiones
+  if(settings.injuries && Math.random()<.025){
+   p.stats.injury=1+Math.floor(Math.random()*3);
+   events.push({
+    minute:1+Math.floor(Math.random()*90),
+    type:'Lesión',team:club,player:p.name,
+    description:`${p.name} sufre una lesión.`
+   });
   }
  }
-
+}
  // Porterías a cero y apariciones
  if(ag===0){
   let gk=hline.find(p=>p.position==='POR');
