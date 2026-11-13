@@ -5,6 +5,11 @@ const archivo = "data/partidos.json";
 
 const home = process.env.EQUIPO_LOCAL?.trim();
 const away = process.env.EQUIPO_VISITANTE?.trim();
+const partidoId = process.env.PARTIDO_ID?.trim();
+
+if (!partidoId) {
+  throw new Error("Falta el identificador único del partido.");
+}
 const golesHome = Number(process.env.GOLES_LOCAL);
 const golesAway = Number(process.env.GOLES_VISITANTE);
 
@@ -24,9 +29,11 @@ if (
 const registro = JSON.parse(
   fs.readFileSync(archivo, "utf8")
 );
-
+if (registro.partidos.some(partido => partido.id === partidoId)) {
+  throw new Error("Este partido ya fue registrado. No se permiten duplicados.");
+}
 const partido = {
-  id: crypto.randomUUID(),
+  id: partidoId,
   home,
   away,
   golesHome,
