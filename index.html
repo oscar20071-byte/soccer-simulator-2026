@@ -209,7 +209,9 @@ async function inicializarDatosCompartidos() {
 
   if (datosCompartidos) {
     console.log("Clubes compartidos:", datosCompartidos.clubes);
-
+datosCompartidos.clubes.forEach(club => {
+  console.log("Club:", club.nombre, "| Liga:", club.liga);
+});
     if (Array.isArray(datosCompartidos.clubes)) {
       console.log(
         "Cantidad de clubes compartidos:",
