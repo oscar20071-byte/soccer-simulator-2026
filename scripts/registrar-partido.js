@@ -1,3 +1,4 @@
+
 const fs = require("fs");
 const crypto = require("crypto");
 
@@ -7,18 +8,23 @@ const home = process.env.EQUIPO_LOCAL?.trim();
 const away = process.env.EQUIPO_VISITANTE?.trim();
 const partidoId = process.env.PARTIDO_ID?.trim();
 
+// Validar identificador
 if (!partidoId) {
-  if (!/^[a-zA-Z0-9_-]+$/.test(partidoId)) {
-  throw new Error("El ID solo puede contener letras, números, guiones y guiones bajos.");
-}
   throw new Error("Falta el identificador único del partido.");
 }
-const golesHome = Number(process.env.GOLES_LOCAL);
-const golesAway = Number(process.env.GOLES_VISITANTE);
 
+if (!/^[a-zA-Z0-9_-]+$/.test(partidoId)) {
+  throw new Error("El ID solo puede contener letras, números, guiones y guiones bajos.");
+}
+
+// Validar equipos
 if (!home || !away || home === away) {
   throw new Error("Los equipos no son válidos.");
 }
+
+// Validar resultado
+const golesHome = Number(process.env.GOLES_LOCAL);
+const golesAway = Number(process.env.GOLES_VISITANTE);
 
 if (
   !Number.isInteger(golesHome) ||
@@ -29,12 +35,25 @@ if (
   throw new Error("El resultado no es válido.");
 }
 
+// Comprobar archivo
+if (!fs.existsSync(archivo)) {
+  throw new Error("No existe el registro de partidos.");
+}
+
 const registro = JSON.parse(
   fs.readFileSync(archivo, "utf8")
 );
-if (registro.partidos.some(partido => partido.id === partidoId)) {
+
+if (!Array.isArray(registro.partidos)) {
+  throw new Error("El formato del registro no es válido.");
+}
+
+// Evitar duplicados
+if (registro.partidos.some(p => p.id === partidoId)) {
   throw new Error("Este partido ya fue registrado. No se permiten duplicados.");
 }
+
+// Crear partido
 const partido = {
   id: partidoId,
   home,
@@ -45,6 +64,7 @@ const partido = {
   eventos: []
 };
 
+// Calcular huella
 const contenido = {
   id: partido.id,
   home: partido.home,
@@ -60,6 +80,7 @@ partido.huella = crypto
   .update(JSON.stringify(contenido))
   .digest("hex");
 
+// Guardar
 registro.partidos.push(partido);
 
 fs.writeFileSync(
