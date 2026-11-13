@@ -22,39 +22,33 @@ const ids = new Set();
 const { execFileSync } = require("child_process");
 
 function verificarHistorialAnterior() {
-  try {
-    const anterior = execFileSync(
-      "git",
-      ["show", "HEAD:data/partidos.json"],
-      { encoding: "utf8" }
+  const anterior = execFileSync(
+    "git",
+    ["show", "HEAD:data/partidos.json"],
+    { encoding: "utf8" }
+  );
+
+  const registroAnterior = JSON.parse(anterior);
+
+  if (!Array.isArray(registroAnterior.partidos)) {
+    throw new Error("El historial anterior no es válido.");
+  }
+
+  for (const partidoAnterior of registroAnterior.partidos) {
+    const partidoActual = registro.partidos.find(
+      partido => partido.id === partidoAnterior.id
     );
 
-    const registroAnterior = JSON.parse(anterior);
-
-    for (const partidoAnterior of registroAnterior.partidos) {
-      const partidoActual = registro.partidos.find(
-        partido => partido.id === partidoAnterior.id
+    if (
+      !partidoActual ||
+      JSON.stringify(partidoActual) !== JSON.stringify(partidoAnterior)
+    ) {
+      throw new Error(
+        `Se modificó o eliminó un partido: ${partidoAnterior.id}`
       );
-
-      if (
-        !partidoActual ||
-        JSON.stringify(partidoActual) !== JSON.stringify(partidoAnterior)
-      ) {
-        throw new Error(
-          `Se modificó o eliminó un partido: ${partidoAnterior.id}`
-        );
-      }
     }
-  } catch (error) {
-    if (error.message.includes("Se modificó o eliminó")) {
-      throw error;
-    }
-
-    console.log("No hay una versión anterior disponible para comparar.");
   }
 }
-
-verificarHistorialAnterior();
 
 for (const partido of registro.partidos) {
   if (!partido.id || !partido.home || !partido.away) {
