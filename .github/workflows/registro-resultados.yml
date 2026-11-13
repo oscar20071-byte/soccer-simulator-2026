@@ -2,9 +2,30 @@ name: Registro de resultados
 
 on:
   workflow_dispatch:
+    inputs:
+      equipo_local:
+        description: "Equipo local"
+        required: true
+        type: string
+      equipo_visitante:
+        description: "Equipo visitante"
+        required: true
+        type: string
+      goles_local:
+        description: "Goles del equipo local"
+        required: true
+        type: string
+      goles_visitante:
+        description: "Goles del equipo visitante"
+        required: true
+        type: string
 
 permissions:
   contents: write
+
+concurrency:
+  group: registro-partidos
+  cancel-in-progress: false
 
 jobs:
   registro:
@@ -19,8 +40,21 @@ jobs:
         with:
           node-version: 22
 
-      - name: Verificar sistema
+      - name: Registrar partido
+        env:
+          EQUIPO_LOCAL: ${{ inputs.equipo_local }}
+          EQUIPO_VISITANTE: ${{ inputs.equipo_visitante }}
+          GOLES_LOCAL: ${{ inputs.goles_local }}
+          GOLES_VISITANTE: ${{ inputs.goles_visitante }}
+        run: node scripts/registrar-partido.js
+
+      - name: Verificar resultados
+        run: node scripts/verificar-partidos.js
+
+      - name: Guardar registro en GitHub
         run: |
-          echo "Sistema de registro preparado."
-          echo "Repositorio: $GITHUB_REPOSITORY"
-          echo "Ejecutado por: $GITHUB_ACTOR"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/partidos.json
+          git commit -m "Registrar nuevo resultado oficial"
+          git push
