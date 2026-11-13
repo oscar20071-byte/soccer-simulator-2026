@@ -46,6 +46,7 @@ jobs:
 
       - name: Registrar partido
         env:
+          PARTIDO_ID: ${{ inputs.partido_id }}
           EQUIPO_LOCAL: ${{ inputs.equipo_local }}
           EQUIPO_VISITANTE: ${{ inputs.equipo_visitante }}
           GOLES_LOCAL: ${{ inputs.goles_local }}
