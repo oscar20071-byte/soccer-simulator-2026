@@ -8,6 +8,9 @@ const away = process.env.EQUIPO_VISITANTE?.trim();
 const partidoId = process.env.PARTIDO_ID?.trim();
 
 if (!partidoId) {
+  if (!/^[a-zA-Z0-9_-]+$/.test(partidoId)) {
+  throw new Error("El ID solo puede contener letras, números, guiones y guiones bajos.");
+}
   throw new Error("Falta el identificador único del partido.");
 }
 const golesHome = Number(process.env.GOLES_LOCAL);
