@@ -9,7 +9,10 @@ if (!fs.existsSync(archivo)) {
 }
 
 const registro = JSON.parse(fs.readFileSync(archivo, "utf8"));
-
+if (registro.version !== 1) {
+  console.error("Versión del registro inválida.");
+  process.exit(1);
+}
 if (!Array.isArray(registro.partidos)) {
   console.error("Formato de registro inválido.");
   process.exit(1);
