@@ -202,7 +202,16 @@ const pages=[
 let selectedTeam='';
 
 let teams=read('teams',[]),players=read('players',[]),comps=read('comps',[]),matches=read('matches',[]),champions=read('champions',[]),awards=read('awards',[]),season=read('season',2026),page='home';
- const DEFAULT_SETTINGS={
+ let datosCompartidos = null;
+
+async function inicializarDatosCompartidos() {
+  datosCompartidos = await cargarDatosCompartidos();
+
+  if (datosCompartidos) {
+    console.log("Clubes compartidos:", datosCompartidos.clubes);
+  }
+}
+  const DEFAULT_SETTINGS={
  cards:true,
  injuries:true,
  substitutions:true,
@@ -1250,11 +1259,7 @@ applyTheme();teams.forEach(t=>{t.stadium=t.stadium||'Estadio Municipal';t.capaci
 if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 applyTheme();
 render();
-  cargarDatosCompartidos().then(datos => {
-  if (datos) {
-    console.log("Conexión con datos compartidos correcta:", datos);
-  }
-});
+inicializarDatosCompartidos();
 </script>
 </body>
 </html>
