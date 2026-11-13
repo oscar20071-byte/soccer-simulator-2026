@@ -1,7 +1,20 @@
 {
   "version": 2,
   "temporada": 2026,
-  "clubes": [],
+  "clubes": [
+  {
+    "id": "real-madrid",
+    "nombre": "Real Madrid",
+    "pais": "España",
+    "liga": "LaLiga",
+    "escudo": "",
+    "presupuesto": 500000000,
+    "estadio": "Santiago Bernabéu",
+    "capacidad": 83000,
+    "entrenador": "Por definir",
+    "jugadores": []
+  }
+],
   "jugadores": [],
   "competiciones": [],
   "partidos": []
