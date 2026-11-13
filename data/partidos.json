@@ -20,6 +20,16 @@
       "fecha": "2026-11-13T15:11:18.613Z",
       "eventos": [],
       "huella": "37a88fbfa87cdf500e99b4213c76430aa68b3f520e58a11d94120a86eb5ae49e"
+    },
+    {
+      "id": "prueba-002",
+      "home": "Barcelona",
+      "away": "Atlético de Madrid",
+      "golesHome": 3,
+      "golesAway": 1,
+      "fecha": "2026-11-13T15:29:51.092Z",
+      "eventos": [],
+      "huella": "014b7d0145308b9c8d7ddfcc0c7fd5dc9a0bf059da727d970f8e09ec3ee15c42"
     }
   ]
 }
