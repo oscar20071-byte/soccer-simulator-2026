@@ -3,6 +3,10 @@ name: Registro de resultados
 on:
   workflow_dispatch:
     inputs:
+      partido_id:
+        description: "Identificador único del partido"
+        required: true
+        type: string
       equipo_local:
         description: "Equipo local"
         required: true
