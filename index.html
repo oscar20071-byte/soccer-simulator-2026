@@ -209,6 +209,13 @@ async function inicializarDatosCompartidos() {
 
   if (datosCompartidos) {
     console.log("Clubes compartidos:", datosCompartidos.clubes);
+
+    if (Array.isArray(datosCompartidos.clubes)) {
+      console.log(
+        "Cantidad de clubes compartidos:",
+        datosCompartidos.clubes.length
+      );
+    }
   }
 }
   const DEFAULT_SETTINGS={
