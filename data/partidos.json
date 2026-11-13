@@ -1,4 +1,15 @@
 {
   "version": 1,
-  "partidos": []
+  "partidos": [
+    {
+      "id": "17f0432c-1431-4e8c-93b6-0d59ce6234f6",
+      "home": "Real Madrid",
+      "away": "Barcelona",
+      "golesHome": 2,
+      "golesAway": 1,
+      "fecha": "2026-11-13T02:43:15.072Z",
+      "eventos": [],
+      "huella": "844a5dbe451b91c5bf95c4a95a6e3ec3074d92638172f5b0bf3d17c852ee61d3"
+    }
+  ]
 }
