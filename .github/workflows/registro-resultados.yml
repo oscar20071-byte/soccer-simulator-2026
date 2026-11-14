@@ -35,7 +35,6 @@ concurrency:
 jobs:
   registro:
     runs-on: ubuntu-latest
-
     steps:
       - name: Descargar repositorio
         uses: actions/checkout@v4
@@ -47,7 +46,7 @@ jobs:
         with:
           node-version: 22
 
-      - name: Registrar partido
+      - name: Validar y registrar partido
         env:
           PARTIDO_ID: ${{ inputs.partido_id }}
           EQUIPO_LOCAL: ${{ inputs.equipo_local }}
@@ -56,7 +55,12 @@ jobs:
           GOLES_VISITANTE: ${{ inputs.goles_visitante }}
         run: node scripts/registrar-partido.js
 
-      - name: Verificar resultados
+      - name: Ejecutar pruebas de integridad
+        run: node --test tests/integridad-partidos.test.js
+
+      - name: Verificar huellas y preservar historial publicado
+        env:
+          BASE_REF: HEAD
         run: node scripts/verificar-partidos.js
 
       - name: Crear solicitud de revisión
@@ -67,5 +71,5 @@ jobs:
           delete-branch: false
           commit-message: "Registrar nuevo resultado oficial"
           title: "Nuevo resultado oficial: ${{ inputs.partido_id }}"
-          body: "Solicitud automática para revisar y publicar un resultado oficial."
+          body: "Solicitud automática para revisar y publicar un resultado. Incluye huella SHA-256 encadenada y verificación del historial."
           add-paths: data/partidos.json
