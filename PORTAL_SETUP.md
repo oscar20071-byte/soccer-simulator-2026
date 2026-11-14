@@ -43,3 +43,20 @@ Se incluye un bot opcional en `discord-bot/` y una migración SQL en `backend/su
 Para activarlo, ejecuta primero el esquema principal y después la migración de Discord; configura y aloja el bot Node.js por separado usando las instrucciones de `discord-bot/README.md`. El token de Discord y la clave `service_role` de Supabase deben permanecer como secretos en el host del bot. GitHub Pages no puede ejecutar el bot. Informa a los miembros antes de habilitar el registro y respeta sus opciones de privacidad.
 
 El código queda preparado, pero no estará conectado hasta que el administrador cree la aplicación de Discord, configure los secretos y ejecute el bot en un host privado.
+
+
+## Registro y creación de comunidades
+
+Se añadió `portal.html` como primera pantalla de autenticación y gestión de comunidades.
+
+1. En Supabase, confirma que **Authentication → Providers → Email** esté habilitado.
+2. En Supabase → Project Settings → API Keys, copia la **Publishable key** (normalmente empieza por `sb_publishable_`). También puede usarse la clave pública heredada `anon`.
+3. Abre `scripts/supabase-config.js` y reemplaza únicamente `PEGA_AQUI_TU_PROJECT_URL` y `PEGA_AQUI_TU_PUBLISHABLE_KEY`.
+4. Publica los cambios y abre `/portal.html`.
+5. Crea una cuenta con correo y contraseña. Si Supabase exige confirmación de correo, confirma el mensaje recibido y vuelve al portal para iniciar sesión.
+6. Crea una comunidad. El portal crea el perfil, registra la comunidad y el trigger SQL añade automáticamente al creador como `owner` e inicializa su estado.
+7. El UUID de la comunidad aparece en pantalla y se puede usar como `COMMUNITY_ID` en el host privado del bot.
+
+La clave Publishable/anon está diseñada para uso público con RLS activado. **No introducir jamás `sb_secret_`, `service_role`, tokens ni contraseñas en el archivo de configuración del navegador o en GitHub.**
+
+La pantalla nueva es una primera integración de autenticación y comunidades; todavía no sincroniza automáticamente el estado completo del simulador (clubes, jugadores, partidos) con `community_state`. Esa integración queda como siguiente fase.
