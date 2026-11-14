@@ -105,7 +105,6 @@ client.once(Events.ClientReady, async readyClient => {
     // Reconcile voice sessions after a restart so stale sessions are closed
     // and members currently in voice can continue being measured.
     const guild = await client.guilds.fetch(DISCORD_GUILD_ID);
-    await guild.members.fetch();
     const { data: openSessions, error: sessionsError } = await supabase
       .from("discord_voice_sessions")
       .select("discord_user_id")
@@ -113,18 +112,18 @@ client.once(Events.ClientReady, async readyClient => {
     if (sessionsError) throw sessionsError;
 
     for (const session of openSessions || []) {
-      const member = guild.members.cache.get(session.discord_user_id);
+      const voiceState = guild.voiceStates.cache.get(session.discord_user_id);
       if (optedOut.has(session.discord_user_id) ||
-          !member || !isTrackable(member.voice.channelId)) {
+          !voiceState || !isTrackable(voiceState.channelId)) {
         await finishVoice(session.discord_user_id);
       } else {
-        await startVoice(session.discord_user_id, member.voice.channelId);
+        await startVoice(session.discord_user_id, voiceState.channelId);
       }
     }
 
-    for (const member of guild.members.cache.values()) {
-      if (!optedOut.has(member.id) && isTrackable(member.voice.channelId)) {
-        await startVoice(member.id, member.voice.channelId);
+    for (const voiceState of guild.voiceStates.cache.values()) {
+      if (!optedOut.has(voiceState.id) && isTrackable(voiceState.channelId)) {
+        await startVoice(voiceState.id, voiceState.channelId);
       }
     }
 
@@ -180,7 +179,7 @@ client.on(Events.InteractionCreate, async interaction => {
     if (interaction.commandName === "privacidad") {
       return interaction.reply({
         ephemeral: true,
-        content: "El bot guarda tu ID de Discord, el número de mensajes por día y los minutos acumulados en canales de voz. No guarda textos, archivos, enlaces, mensajes privados ni el contenido de conversaciones. Puedes desactivar el registro con /desactivar-estadisticas."
+        content: "El bot guarda tu ID de Discord, el número de mensajes por día y los minutos acumulados en canales de voz. No guarda textos, archivos, enlaces, mensajes privados ni el contenido de conversaciones. Puedes desactivar el registro con /desactivar-estadisticas o borrar tus datos con /borrar-mis-estadisticas."
       });
     }
 
@@ -209,9 +208,9 @@ client.on(Events.InteractionCreate, async interaction => {
       });
       if (error) throw error;
       optedOut.delete(userId);
-      const member = await interaction.guild.members.fetch(userId);
-      if (isTrackable(member.voice.channelId)) {
-        await startVoice(userId, member.voice.channelId);
+      const voiceState = interaction.guild.voiceStates.cache.get(userId);
+      if (isTrackable(voiceState?.channelId)) {
+        await startVoice(userId, voiceState.channelId);
       }
       return interaction.reply({
         ephemeral: true,
@@ -221,10 +220,12 @@ client.on(Events.InteractionCreate, async interaction => {
 
     if (interaction.commandName === "borrar-mis-estadisticas") {
       optedOut.add(userId);
-      await supabase.from("discord_voice_sessions")
+      const { error: sessionDeleteError } = await supabase
+        .from("discord_voice_sessions")
         .delete()
         .eq("guild_id", DISCORD_GUILD_ID)
         .eq("discord_user_id", userId);
+      if (sessionDeleteError) throw sessionDeleteError;
       const { error: deleteError } = await supabase
         .from("discord_activity_daily")
         .delete()
@@ -288,11 +289,7 @@ client.on(Events.InteractionCreate, async interaction => {
         return interaction.reply("Todavía no hay estadísticas registradas.");
       }
       const lines = await Promise.all(top.map(async ([id, stats], index) => {
-        let name = "<@" + id + ">";
-        try {
-          const member = await interaction.guild.members.fetch(id);
-          name = member.displayName;
-        } catch (_) {}
+        const name = "<@" + id + ">";
         return (index + 1) + ". **" + name + "** — " + stats.messages +
           " mensajes · " + stats.minutes + " min en voz";
       }));
