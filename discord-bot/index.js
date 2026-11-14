@@ -63,7 +63,10 @@ const commands = [
     .setDescription("Deja de registrar tu actividad futura."),
   new SlashCommandBuilder()
     .setName("activar-estadisticas")
-    .setDescription("Vuelve a permitir el registro de tu actividad.")
+    .setDescription("Vuelve a permitir el registro de tu actividad."),
+  new SlashCommandBuilder()
+    .setName("borrar-mis-estadisticas")
+    .setDescription("Elimina tus estadísticas históricas de este servidor.")
 ].map(command => command.toJSON());
 
 function isTrackable(channelId) {
@@ -213,6 +216,33 @@ client.on(Events.InteractionCreate, async interaction => {
       return interaction.reply({
         ephemeral: true,
         content: "El registro de actividad está activado de nuevo."
+      });
+    }
+
+    if (interaction.commandName === "borrar-mis-estadisticas") {
+      optedOut.add(userId);
+      await supabase.from("discord_voice_sessions")
+        .delete()
+        .eq("guild_id", DISCORD_GUILD_ID)
+        .eq("discord_user_id", userId);
+      const { error: deleteError } = await supabase
+        .from("discord_activity_daily")
+        .delete()
+        .eq("community_id", COMMUNITY_ID)
+        .eq("discord_user_id", userId);
+      if (deleteError) throw deleteError;
+      const { error: preferenceError } = await supabase
+        .from("discord_activity_preferences")
+        .upsert({
+          community_id: COMMUNITY_ID,
+          discord_user_id: userId,
+          enabled: false,
+          updated_at: new Date().toISOString()
+        });
+      if (preferenceError) throw preferenceError;
+      return interaction.reply({
+        ephemeral: true,
+        content: "Tus estadísticas históricas fueron eliminadas y el registro futuro quedó desactivado. Puedes volver a activarlo con /activar-estadisticas."
       });
     }
 
