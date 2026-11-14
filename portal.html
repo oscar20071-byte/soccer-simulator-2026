@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07131f">
+<title>Portal de comunidades · Soccer Simulator 2026</title>
+<style>
+:root{color-scheme:dark;--bg:#07131f;--panel:#102235;--line:#294156;--text:#edf6fb;--muted:#9bb0bf;--green:#20d6a2;--red:#ff8796}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 80% 0,#104538 0,transparent 35%),var(--bg);color:var(--text);font:15px system-ui,Arial,sans-serif;min-height:100vh}
+main{width:min(920px,calc(100% - 28px));margin:36px auto}.brand{font-size:13px;font-weight:900;letter-spacing:.18em;color:var(--green)}h1{font-size:clamp(30px,6vw,46px);margin:10px 0}p{color:var(--muted);line-height:1.55}.card{background:#0d1d2c;border:1px solid var(--line);border-radius:16px;padding:20px;margin:16px 0}.tabs,.actions{display:flex;gap:9px;flex-wrap:wrap}.tabs button,button{border:0;border-radius:9px;padding:11px 15px;font-weight:800;cursor:pointer;background:var(--green);color:#06251d}.tabs button.secondary,button.secondary{background:#193247;color:var(--text);border:1px solid var(--line)}.field{display:grid;gap:6px;margin:12px 0}.field label{font-size:12px;color:var(--muted);font-weight:800}.field input{background:#071724;border:1px solid var(--line);border-radius:8px;padding:12px;color:var(--text);width:100%}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.notice{padding:12px;border-radius:9px;background:#142b3b;color:var(--muted);white-space:pre-wrap;overflow-wrap:anywhere}.notice.error{border:1px solid #743a48;color:#ffd7de}.notice.success{border:1px solid #247d67;color:#c9ffed}.hidden{display:none!important}.community{border:1px solid var(--line);padding:13px;border-radius:10px;margin-top:10px;overflow-wrap:anywhere}.community code{color:var(--green)}small{color:var(--muted)}@media(max-width:600px){.grid{grid-template-columns:1fr}main{margin:22px auto}.card{padding:15px}}
+</style>
+</head>
+<body>
+<main>
+ <div class="brand">SOCCER SIMULATOR 2026 · PORTAL</div>
+ <h1>Tu comunidad. Tu simulador.</h1>
+ <p>Crea tu cuenta, inicia sesión y registra una comunidad. El identificador UUID se mostrará para conectar el bot de Discord.</p>
+ <div id="configNotice" class="notice">Comprobando configuración de Supabase…</div>
+ <section id="authCard" class="card hidden">
+  <div class="tabs">
+   <button id="showLogin">Iniciar sesión</button>
+   <button id="showSignup" class="secondary">Crear cuenta</button>
+  </div>
+  <form id="authForm">
+   <div id="nameField" class="field hidden"><label for="displayName">Nombre visible</label><input id="displayName" maxlength="60" autocomplete="nickname"></div>
+   <div class="field"><label for="email">Correo electrónico</label><input id="email" type="email" required autocomplete="email"></div>
+   <div class="field"><label for="password">Contraseña</label><input id="password" type="password" required minlength="8" autocomplete="current-password"></div>
+   <button id="authSubmit" type="submit">Iniciar sesión</button>
+  </form>
+  <div id="authMessage" class="notice hidden" aria-live="polite"></div>
+ </section>
+ <section id="accountCard" class="card hidden">
+  <div class="actions" style="justify-content:space-between;align-items:center"><div><b id="welcome"></b><p id="userEmail"></p></div><button id="logout" class="secondary">Cerrar sesión</button></div>
+  <h2>Crear una comunidad</h2>
+  <p>El nombre debe tener entre 2 y 60 caracteres. El identificador corto solo admite letras minúsculas, números y guiones.</p>
+  <form id="communityForm">
+   <div class="grid">
+    <div class="field"><label for="communityName">Nombre de la comunidad</label><input id="communityName" required minlength="2" maxlength="60" placeholder="Distock"></div>
+    <div class="field"><label for="communitySlug">Identificador corto</label><input id="communitySlug" required minlength="3" maxlength="40" pattern="[a-z0-9-]+" placeholder="distock"></div>
+   </div>
+   <button type="submit">Crear comunidad</button>
+  </form>
+  <div id="communityMessage" class="notice hidden" aria-live="polite"></div>
+  <h2 style="margin-top:28px">Mis comunidades</h2>
+  <div id="communityList"><p>Cargando…</p></div>
+ </section>
+ <p><small>Seguridad: esta página usa únicamente la clave pública de Supabase y las políticas RLS. Nunca introduzcas aquí una clave secreta o service_role.</small></p>
+ <p><a href="./index.html" style="color:var(--green)">← Volver al simulador</a></p>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./scripts/supabase-config.js"></script>
+<script>
+(()=>{
+ const $=id=>document.getElementById(id);
+ const config=window.SS26_SUPABASE_CONFIG||{};
+ const configured=config.url&&config.publishableKey&&!config.url.includes('PEGA_AQUI')&&!config.publishableKey.includes('PEGA_AQUI');
+ let supabase=null,mode='login',currentUser=null;
+ function message(id,text,type=''){const el=$(id);el.textContent=text;el.className='notice'+(type?' '+type:'');el.classList.remove('hidden')}
+ function slugify(s){return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40)}
+ $('communityName').addEventListener('input',()=>{if(!$('communitySlug').dataset.edited)$('communitySlug').value=slugify($('communityName').value)});
+ $('communitySlug').addEventListener('input',()=>{$('communitySlug').dataset.edited='1'});
+ function setMode(next){mode=next;$('nameField').classList.toggle('hidden',mode!=='signup');$('authSubmit').textContent=mode==='signup'?'Crear cuenta':'Iniciar sesión';$('showLogin').classList.toggle('secondary',mode!=='login');$('showSignup').classList.toggle('secondary',mode!=='signup');$('password').autocomplete=mode==='signup'?'new-password':'current-password';}
+ $('showLogin').onclick=()=>setMode('login');$('showSignup').onclick=()=>setMode('signup');
+ async function ensureProfile(user,displayName){const name=(displayName||user.user_metadata?.display_name||user.email?.split('@')[0]||'Usuario').trim().slice(0,60);const {error}=await supabase.from('profiles').upsert({id:user.id,display_name:name,updated_at:new Date().toISOString()},{onConflict:'id'});if(error)throw error;}
+ async function loadCommunities(){if(!currentUser)return;const {data,error}=await supabase.from('community_members').select('role, communities(id,name,slug,created_at)').eq('user_id',currentUser.id);if(error){$('communityList').textContent='No se pudieron cargar las comunidades: '+error.message;return;}const items=(data||[]).filter(x=>x.communities).map(x=>x.communities);$('communityList').innerHTML=items.length?items.map(c=>'<div class="community"><b></b><p></p><small>UUID de comunidad</small><br><code></code></div>').join(''):'<p>Aún no perteneces a ninguna comunidad. Crea la primera arriba.</p>';[...$('communityList').querySelectorAll('.community')].forEach((el,i)=>{const c=items[i];el.querySelector('b').textContent=c.name+' · '+c.slug;el.querySelector('p').textContent='Creada: '+new Date(c.created_at).toLocaleString();el.querySelector('code').textContent=c.id;});}
+ async function showSession(session){currentUser=session?.user||null;$('authCard').classList.toggle('hidden',!!currentUser);$('accountCard').classList.toggle('hidden',!currentUser);if(currentUser){try{await ensureProfile(currentUser);$('welcome').textContent='Sesión iniciada';$('userEmail').textContent=currentUser.email||'';await loadCommunities();}catch(e){message('communityMessage','No se pudo preparar el perfil: '+e.message,'error');}}}
+ $('authForm').addEventListener('submit',async e=>{e.preventDefault();if(!supabase)return;const email=$('email').value.trim(),password=$('password').value;const btn=$('authSubmit');btn.disabled=true;try{if(mode==='signup'){const displayName=$('displayName').value.trim();if(displayName.length<2)throw new Error('Escribe un nombre visible de al menos 2 caracteres.');const {data,error}=await supabase.auth.signUp({email,password,options:{data:{display_name:displayName}}});if(error)throw error;if(data.session){await ensureProfile(data.user,displayName);message('authMessage','Cuenta creada. Ya puedes crear tu comunidad.','success');await showSession(data.session);}else{message('authMessage','Cuenta creada. Revisa tu correo y confirma la dirección. Después vuelve aquí e inicia sesión.','success');setMode('login');}}else{const {data,error}=await supabase.auth.signInWithPassword({email,password});if(error)throw error;await ensureProfile(data.user);await showSession(data.session);}}catch(err){message('authMessage',err.message||'No se pudo completar la operación.','error');}finally{btn.disabled=false;}});
+ $('communityForm').addEventListener('submit',async e=>{e.preventDefault();if(!currentUser)return;const name=$('communityName').value.trim(),slug=$('communitySlug').value.trim();if(!/^[a-z0-9-]{3,40}$/.test(slug)){message('communityMessage','El identificador debe tener entre 3 y 40 caracteres: minúsculas, números o guiones.','error');return;}const btn=e.submitter;btn.disabled=true;try{const {data,error}=await supabase.from('communities').insert({name,slug,created_by:currentUser.id}).select('id,name,slug').single();if(error)throw error;message('communityMessage','Comunidad creada correctamente. UUID: '+data.id,'success');$('communityName').value='';$('communitySlug').value='';delete $('communitySlug').dataset.edited;await loadCommunities();}catch(err){message('communityMessage',err.message||'No se pudo crear la comunidad.','error');}finally{btn.disabled=false;}});
+ $('logout').onclick=async()=>{const {error}=await supabase.auth.signOut();if(error)message('communityMessage',error.message,'error');else{currentUser=null;$('accountCard').classList.add('hidden');$('authCard').classList.remove('hidden');setMode('login');}};
+ if(!window.supabase||!configured){$('configNotice').textContent='Falta configurar scripts/supabase-config.js con tu Project URL y tu Publishable key (sb_publishable_…). No uses la clave Secret ni service_role.';$('configNotice').classList.add('error');return;}
+ supabase=window.supabase.createClient(config.url,config.publishableKey);$('configNotice').textContent='Conexión preparada. Puedes crear tu cuenta o iniciar sesión.';$('configNotice').classList.add('success');$('authCard').classList.remove('hidden');setMode('login');
+ supabase.auth.getSession().then(({data})=>showSession(data.session));supabase.auth.onAuthStateChange((_event,session)=>{if(session?.user)showSession(session);else if(!currentUser){$('authCard').classList.remove('hidden');$('accountCard').classList.add('hidden');}});
+})();
+</script>
+</body>
+</html>
