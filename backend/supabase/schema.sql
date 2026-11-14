@@ -121,10 +121,18 @@ on public.community_members for select to authenticated
 using (public.is_community_member(community_id));
 
 drop policy if exists "members_manage_admins" on public.community_members;
-create policy "members_manage_admins"
-on public.community_members for all to authenticated
-using (public.has_community_role(community_id, array['owner','admin']))
-with check (public.has_community_role(community_id, array['owner','admin']));
+drop policy if exists "members_insert_owner" on public.community_members;
+create policy "members_insert_owner"
+on public.community_members for insert to authenticated
+with check (public.has_community_role(community_id, array['owner']));
+
+drop policy if exists "members_delete_owner" on public.community_members;
+create policy "members_delete_owner"
+on public.community_members for delete to authenticated
+using (
+  role <> 'owner'
+  and public.has_community_role(community_id, array['owner'])
+);
 
 drop policy if exists "state_read_members" on public.community_state;
 create policy "state_read_members"
