@@ -99,6 +99,32 @@ client.once(Events.ClientReady, async readyClient => {
     if (error) throw error;
     for (const row of data || []) optedOut.add(row.discord_user_id);
 
+    // Reconcile voice sessions after a restart so stale sessions are closed
+    // and members currently in voice can continue being measured.
+    const guild = await client.guilds.fetch(DISCORD_GUILD_ID);
+    await guild.members.fetch();
+    const { data: openSessions, error: sessionsError } = await supabase
+      .from("discord_voice_sessions")
+      .select("discord_user_id")
+      .eq("guild_id", DISCORD_GUILD_ID);
+    if (sessionsError) throw sessionsError;
+
+    for (const session of openSessions || []) {
+      const member = guild.members.cache.get(session.discord_user_id);
+      if (optedOut.has(session.discord_user_id) ||
+          !member || !isTrackable(member.voice.channelId)) {
+        await finishVoice(session.discord_user_id);
+      } else {
+        await startVoice(session.discord_user_id, member.voice.channelId);
+      }
+    }
+
+    for (const member of guild.members.cache.values()) {
+      if (!optedOut.has(member.id) && isTrackable(member.voice.channelId)) {
+        await startVoice(member.id, member.voice.channelId);
+      }
+    }
+
     const rest = new REST({ version: "10" }).setToken(DISCORD_TOKEN);
     await rest.put(
       Routes.applicationGuildCommands(DISCORD_CLIENT_ID, DISCORD_GUILD_ID),
