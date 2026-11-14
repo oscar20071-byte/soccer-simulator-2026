@@ -15,16 +15,22 @@ const baseRef = process.env.BASE_REF || "HEAD";
 
 function obtenerRegistroBase() {
   try {
-    const contenido = execFileSync(
+    execFileSync(
       "git",
-      ["show", baseRef + ":" + archivo],
-      { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }
+      ["cat-file", "-e", baseRef + ":" + archivo],
+      { stdio: ["ignore", "ignore", "ignore"] }
     );
-    return JSON.parse(contenido);
   } catch (error) {
     // Es válido que el archivo aún no existiera en la rama base.
     return null;
   }
+
+  const contenido = execFileSync(
+    "git",
+    ["show", baseRef + ":" + archivo],
+    { encoding: "utf8" }
+  );
+  return JSON.parse(contenido);
 }
 
 function compararHistorialAnterior() {
