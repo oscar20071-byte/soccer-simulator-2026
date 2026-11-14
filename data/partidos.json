@@ -1,45 +1,9 @@
 {
-  "version": 1,
-  "partidos": [
-    {
-      "id": "17f0432c-1431-4e8c-93b6-0d59ce6234f6",
-      "home": "Real Madrid",
-      "away": "Barcelona",
-      "golesHome": 2,
-      "golesAway": 1,
-      "fecha": "2026-11-13T02:43:15.072Z",
-      "eventos": [],
-      "huella": "844a5dbe451b91c5bf95c4a95a6e3ec3074d92638172f5b0bf3d17c852ee61d3"
-    },
-    {
-      "id": "prueba-001",
-      "home": "Real Madrid",
-      "away": "Barcelona",
-      "golesHome": 2,
-      "golesAway": 1,
-      "fecha": "2026-11-13T15:11:18.613Z",
-      "eventos": [],
-      "huella": "37a88fbfa87cdf500e99b4213c76430aa68b3f520e58a11d94120a86eb5ae49e"
-    },
-    {
-      "id": "prueba-002",
-      "home": "Barcelona",
-      "away": "Atlético de Madrid",
-      "golesHome": 3,
-      "golesAway": 1,
-      "fecha": "2026-11-13T15:29:51.092Z",
-      "eventos": [],
-      "huella": "014b7d0145308b9c8d7ddfcc0c7fd5dc9a0bf059da727d970f8e09ec3ee15c42"
-    },
-    {
-      "id": "prueba-003",
-      "home": "Real Madrid",
-      "away": "Atlético de Madrid",
-      "golesHome": 2,
-      "golesAway": 0,
-      "fecha": "2026-11-13T15:58:24.197Z",
-      "eventos": [],
-      "huella": "630e0adb459b3f95e086fd39285ef137c3d8447d0d91f68e2097042bc91247e5"
-    }
-  ]
+  "version": 2,
+  "cadena": {
+    "algoritmo": "SHA-256",
+    "hashInicial": "0000000000000000000000000000000000000000000000000000000000000000",
+    "ultimoHash": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "partidos": []
 }
