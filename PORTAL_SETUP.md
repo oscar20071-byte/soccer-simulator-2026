@@ -20,8 +20,9 @@ La base preparada aquí usa **Supabase** para autenticación y datos compartidos
 ## Modelo de permisos
 
 - **owner**: propietario de la comunidad.
-- **admin**: administra comunidad y miembros.
+- **admin**: administra la comunidad y sus invitaciones.
 - **moderator**: puede publicar el estado del simulador.
+- La gestión de altas/bajas de miembros queda reservada al propietario en esta primera versión; así se evita que un administrador se eleve permisos o quite al propietario.
 - **member**: puede consultar la comunidad.
 - Cada comunidad tiene un estado de simulación independiente.
 - La entrada se realiza mediante invitaciones con caducidad y límite de usos.
