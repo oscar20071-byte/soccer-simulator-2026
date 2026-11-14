@@ -1,5 +1,7 @@
+"use strict";
+
 const fs = require("fs");
-const crypto = require("crypto");
+const integridad = require("./integridad-partidos");
 
 const archivo = "data/partidos.json";
 
@@ -8,34 +10,40 @@ const away = process.env.EQUIPO_VISITANTE?.trim();
 const partidoId = process.env.PARTIDO_ID?.trim();
 
 if (!partidoId) {
-  if (!/^[a-zA-Z0-9_-]+$/.test(partidoId)) {
-  throw new Error("El ID solo puede contener letras, números, guiones y guiones bajos.");
-}
   throw new Error("Falta el identificador único del partido.");
 }
-const golesHome = Number(process.env.GOLES_LOCAL);
-const golesAway = Number(process.env.GOLES_VISITANTE);
-
+if (!/^[a-zA-Z0-9_-]+$/.test(partidoId)) {
+  throw new Error("El ID solo puede contener letras, números, guiones y guiones bajos.");
+}
 if (!home || !away || home === away) {
-  throw new Error("Los equipos no son válidos.");
+  throw new Error("Los equipos no son válidos o son iguales.");
 }
 
+const golesHome = Number(process.env.GOLES_LOCAL);
+const golesAway = Number(process.env.GOLES_VISITANTE);
 if (
+  process.env.GOLES_LOCAL === undefined ||
+  process.env.GOLES_VISITANTE === undefined ||
   !Number.isInteger(golesHome) ||
   !Number.isInteger(golesAway) ||
   golesHome < 0 ||
   golesAway < 0
 ) {
-  throw new Error("El resultado no es válido.");
+  throw new Error("El resultado debe contener goles enteros iguales o superiores a cero.");
 }
 
-const registro = JSON.parse(
-  fs.readFileSync(archivo, "utf8")
-);
+if (!fs.existsSync(archivo)) {
+  throw new Error("No existe data/partidos.json. El registro inicial debe estar versionado.");
+}
+
+let registro = JSON.parse(fs.readFileSync(archivo, "utf8"));
+registro = integridad.migrarRegistroLegado(registro);
+
 if (registro.partidos.some(partido => partido.id === partidoId)) {
   throw new Error("Este partido ya fue registrado. No se permiten duplicados.");
 }
-const partido = {
+
+const partido = integridad.crearPartido({
   id: partidoId,
   home,
   away,
@@ -43,30 +51,15 @@ const partido = {
   golesAway,
   fecha: new Date().toISOString(),
   eventos: []
-};
-
-const contenido = {
-  id: partido.id,
-  home: partido.home,
-  away: partido.away,
-  golesHome: partido.golesHome,
-  golesAway: partido.golesAway,
-  fecha: partido.fecha,
-  eventos: partido.eventos
-};
-
-partido.huella = crypto
-  .createHash("sha256")
-  .update(JSON.stringify(contenido))
-  .digest("hex");
+}, registro.cadena.ultimoHash);
 
 registro.partidos.push(partido);
+registro.cadena.ultimoHash = partido.huella;
 
-fs.writeFileSync(
-  archivo,
-  JSON.stringify(registro, null, 2) + "\n"
-);
+integridad.verificarRegistro(registro);
+fs.writeFileSync(archivo, JSON.stringify(registro, null, 2) + "\n");
 
 console.log("Partido registrado correctamente.");
 console.log("ID:", partido.id);
-console.log("Huella:", partido.huella);
+console.log("Huella SHA-256:", partido.huella);
+console.log("Huella anterior:", partido.huellaAnterior);
