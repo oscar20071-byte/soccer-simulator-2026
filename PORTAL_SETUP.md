@@ -35,3 +35,11 @@ El esquema SQL es la base del backend, no una integración terminada de la inter
 ## Funciones del simulador ya presentes en la interfaz
 
 La versión actual ya contiene páginas de alineaciones, lesiones y sanciones, estadísticas, premios, estadios, historial, ajustes de simulación, tácticas y respaldos. El trabajo siguiente debe integrar esas funciones con el estado de cada comunidad, no duplicarlas ni reemplazarlas.
+
+## Estadísticas de actividad de Discord
+
+Se incluye un bot opcional en `discord-bot/` y una migración SQL en `backend/supabase/discord_activity.sql`. El bot registra cantidades de mensajes y minutos en voz, sin guardar el contenido de los mensajes. Ofrece los comandos `/actividad`, `/ranking`, `/privacidad`, `/desactivar-estadisticas` y `/activar-estadisticas`.
+
+Para activarlo, ejecuta primero el esquema principal y después la migración de Discord; configura y aloja el bot Node.js por separado usando las instrucciones de `discord-bot/README.md`. El token de Discord y la clave `service_role` de Supabase deben permanecer como secretos en el host del bot. GitHub Pages no puede ejecutar el bot. Informa a los miembros antes de habilitar el registro y respeta sus opciones de privacidad.
+
+El código queda preparado, pero no estará conectado hasta que el administrador cree la aplicación de Discord, configure los secretos y ejecute el bot en un host privado.
