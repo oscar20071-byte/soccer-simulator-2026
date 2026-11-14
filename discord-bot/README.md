@@ -11,7 +11,7 @@ Este bot registra únicamente métricas agregadas para una comunidad de Soccer S
 ## Privacidad
 - No registra contenido de mensajes, adjuntos, enlaces, mensajes directos ni presencia/estado en línea.
 - `/privacidad` explica los datos guardados.
-- Cada miembro puede usar `/desactivar-estadisticas` y `/activar-estadisticas`. Desactivar detiene el registro futuro; las estadísticas anteriores permanecen.
+- Cada miembro puede usar `/desactivar-estadisticas` y `/activar-estadisticas`. Desactivar detiene el registro futuro; las estadísticas anteriores permanecen. `/borrar-mis-estadisticas` elimina sus estadísticas históricas y desactiva el registro.
 - Publica un aviso en las reglas del servidor antes de activar el bot. El propietario debe cumplir las reglas y requisitos de privacidad de Discord y las normas aplicables a su comunidad.
 - Los minutos de voz se calculan al salir del canal y se asignan al día UTC de salida. Si el bot está desconectado, el cálculo de esa sesión puede ser impreciso.
 
@@ -25,7 +25,7 @@ Este bot registra únicamente métricas agregadas para una comunidad de Soccer S
 6. Configura `SUPABASE_SERVICE_ROLE_KEY` como secreto privado del host, nunca en GitHub Pages, en el navegador ni en este repositorio.
 7. Ejecuta `npm install` y `npm start`.
 
-Al iniciar, el bot registra sus comandos de servidor. En Discord estarán disponibles `/actividad`, `/ranking`, `/privacidad`, `/desactivar-estadisticas` y `/activar-estadisticas`.
+Al iniciar, el bot registra sus comandos de servidor. En Discord estarán disponibles `/actividad`, `/ranking`, `/privacidad`, `/desactivar-estadisticas`, `/activar-estadisticas` y `/borrar-mis-estadisticas`.
 
 ## Límites
 El bot debe mantenerse encendido en un host que admita procesos Node.js. GitHub Pages no puede alojarlo. Esta carpeta contiene el código, no una instalación ni un bot ya conectado. Una comunidad de Discord se vincula a una comunidad del portal mediante `COMMUNITY_ID`.
