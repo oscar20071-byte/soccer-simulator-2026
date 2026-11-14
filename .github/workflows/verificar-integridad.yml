@@ -1,0 +1,34 @@
+name: Verificar integridad de resultados
+
+on:
+  pull_request:
+    paths:
+      - "data/partidos.json"
+      - "scripts/**"
+      - "tests/**"
+      - ".github/workflows/**"
+
+permissions:
+  contents: read
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar historial completo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Ejecutar pruebas
+        run: node --test tests/integridad-partidos.test.js
+
+      - name: Verificar cadena y comparar con la rama base
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha }}
+        run: node scripts/verificar-partidos.js

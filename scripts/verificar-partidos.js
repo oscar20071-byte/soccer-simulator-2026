@@ -1,97 +1,68 @@
+"use strict";
+
 const fs = require("fs");
-const crypto = require("crypto");
+const { execFileSync } = require("child_process");
+const integridad = require("./integridad-partidos");
 
 const archivo = "data/partidos.json";
-
 if (!fs.existsSync(archivo)) {
-  console.error("No existe el registro de partidos.");
-  process.exit(1);
+  throw new Error("No existe el registro de partidos.");
 }
 
-const registro = JSON.parse(fs.readFileSync(archivo, "utf8"));
-if (registro.version !== 1) {
-  console.error("Versión del registro inválida.");
-  process.exit(1);
-}
-if (!Array.isArray(registro.partidos)) {
-  console.error("Formato de registro inválido.");
-  process.exit(1);
-}
+const actual = JSON.parse(fs.readFileSync(archivo, "utf8"));
+const resultado = integridad.verificarRegistro(actual);
+const baseRef = process.env.BASE_REF || "HEAD";
 
-const ids = new Set();
-const { execFileSync } = require("child_process");
+function obtenerRegistroBase() {
+  try {
+    execFileSync(
+      "git",
+      ["cat-file", "-e", baseRef + ":" + archivo],
+      { stdio: ["ignore", "ignore", "ignore"] }
+    );
+  } catch (error) {
+    // Es válido que el archivo aún no existiera en la rama base.
+    return null;
+  }
 
-function verificarHistorialAnterior() {
-  const anterior = execFileSync(
+  const contenido = execFileSync(
     "git",
-    ["show", "HEAD:data/partidos.json"],
+    ["show", baseRef + ":" + archivo],
     { encoding: "utf8" }
   );
+  return JSON.parse(contenido);
+}
 
-  const registroAnterior = JSON.parse(anterior);
+function compararHistorialAnterior() {
+  const anterior = obtenerRegistroBase();
+  if (!anterior) return;
 
-  if (!Array.isArray(registroAnterior.partidos)) {
-    throw new Error("El historial anterior no es válido.");
+  const verificacionAnterior = integridad.verificarRegistro(anterior);
+  if (actual.partidos.length < anterior.partidos.length) {
+    throw new Error("No se permite eliminar partidos del historial.");
   }
 
-  for (const partidoAnterior of registroAnterior.partidos) {
-    const partidoActual = registro.partidos.find(
-      partido => partido.id === partidoAnterior.id
-    );
+  for (let i = 0; i < anterior.partidos.length; i++) {
+    const viejo = anterior.partidos[i];
+    const nuevo = actual.partidos[i];
+    if (!nuevo || nuevo.id !== viejo.id) {
+      throw new Error("Se reordenó o eliminó el partido histórico: " + viejo.id);
+    }
 
-    if (
-      !partidoActual ||
-      JSON.stringify(partidoActual) !== JSON.stringify(partidoAnterior)
-    ) {
-      throw new Error(
-        `Se modificó o eliminó un partido: ${partidoAnterior.id}`
-      );
+    if (anterior.version === 1 && actual.version === 2) {
+      const camposViejos = integridad.contenidoCanonico(viejo);
+      const camposNuevos = integridad.contenidoCanonico(nuevo);
+      if (JSON.stringify(camposViejos) !== JSON.stringify(camposNuevos)) {
+        throw new Error("Se modificó un partido histórico: " + viejo.id);
+      }
+    } else if (JSON.stringify(nuevo) !== JSON.stringify(viejo)) {
+      throw new Error("Se modificó un partido histórico: " + viejo.id);
     }
   }
+
+  console.log("Historial anterior preservado:", verificacionAnterior.cantidad, "partidos.");
 }
 
-for (const partido of registro.partidos) {
-  if (!partido.id || !partido.home || !partido.away) {
-    console.error("Partido incompleto.");
-    process.exit(1);
-  }
-
-  if (ids.has(partido.id)) {
-    console.error(`ID duplicado: ${partido.id}`);
-    process.exit(1);
-  }
-
-  ids.add(partido.id);
-
-  if (
-    !Number.isInteger(partido.golesHome) ||
-    !Number.isInteger(partido.golesAway) ||
-    partido.golesHome < 0 ||
-    partido.golesAway < 0
-  ) {
-    console.error(`Resultado inválido: ${partido.id}`);
-    process.exit(1);
-  }
-
-  const contenido = {
-    id: partido.id,
-    home: partido.home,
-    away: partido.away,
-    golesHome: partido.golesHome,
-    golesAway: partido.golesAway,
-    fecha: partido.fecha,
-    eventos: partido.eventos || []
-  };
-
-  const huella = crypto
-    .createHash("sha256")
-    .update(JSON.stringify(contenido))
-    .digest("hex");
-
-  if (!partido.huella || partido.huella !== huella) {
-    console.error(`¡Huella incorrecta! Partido: ${partido.id}`);
-    process.exit(1);
-  }
-}
-
-console.log(`Verificación correcta: ${ids.size} partidos.`);
+compararHistorialAnterior();
+console.log("Integridad correcta:", resultado.cantidad, "partidos verificados.");
+console.log("Última huella de la cadena:", resultado.ultimoHash);
