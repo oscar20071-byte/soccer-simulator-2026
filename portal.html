@@ -70,7 +70,7 @@ main{width:min(920px,calc(100% - 28px));margin:36px auto}.brand{font-size:13px;f
  $('logout').onclick=async()=>{const {error}=await supabase.auth.signOut();if(error)message('communityMessage',error.message,'error');else{currentUser=null;$('accountCard').classList.add('hidden');$('authCard').classList.remove('hidden');setMode('login');}};
  if(!window.supabase||!configured){$('configNotice').textContent='Falta configurar scripts/supabase-config.js con tu Project URL y tu Publishable key (sb_publishable_…). No uses la clave Secret ni service_role.';$('configNotice').classList.add('error');return;}
  supabase=window.supabase.createClient(config.url,config.publishableKey);$('configNotice').textContent='Conexión preparada. Puedes crear tu cuenta o iniciar sesión.';$('configNotice').classList.add('success');$('authCard').classList.remove('hidden');setMode('login');
- supabase.auth.getSession().then(({data})=>showSession(data.session));supabase.auth.onAuthStateChange((_event,session)=>{if(session?.user)showSession(session);else if(!currentUser){$('authCard').classList.remove('hidden');$('accountCard').classList.add('hidden');}});
+ supabase.auth.getSession().then(({data})=>showSession(data.session));
 })();
 </script>
 </body>
