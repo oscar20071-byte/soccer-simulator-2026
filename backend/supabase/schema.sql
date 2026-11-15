@@ -6,14 +6,19 @@ create extension if not exists pgcrypto;
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   display_name text not null default 'Usuario',
-  username text unique check (username is null or username ~ '^[a-z0-9_]{3,20} timestamptz not null default now(),
+  username text unique check (username is null or username ~ '^[a-z0-9_]{3,20}$'),
+  created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
 alter table public.profiles add column if not exists username text;
-create unique index if not exists profiles_username_unique on public.profiles(username) where username is not null;
+create unique index if not exists profiles_username_unique
+  on public.profiles(username) where username is not null;
 alter table public.profiles drop constraint if exists profiles_username_format;
-alter table public.profiles add constraint profiles_username_format check (username is null or username ~ '^[a-z0-9_]{3,20} (
+alter table public.profiles add constraint profiles_username_format
+  check (username is null or username ~ '^[a-z0-9_]{3,20}$');
+
+create table if not exists public.communities (
   id uuid primary key default gen_random_uuid(),
   name text not null check (char_length(trim(name)) between 2 and 60),
   slug text not null unique check (slug ~ '^[a-z0-9-]{3,40}$'),
