@@ -1,10 +1,11 @@
 
-const CACHE = 'soccer-sim-2026-v21';
+const CACHE = 'soccer-sim-2026-v22';
 
 const FILES = [
   './',
   './index.html',
-  './manifest.webmanifest'
+  './manifest.webmanifest',
+  './scripts/acta-oficial.js'
 ];
 
 self.addEventListener('install', event => {
