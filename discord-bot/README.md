@@ -1,31 +1,42 @@
-# Bot de estadísticas de Discord
+# Bot de estadísticas multi-servidor de Discord
 
-Este bot registra únicamente métricas agregadas para una comunidad de Soccer Simulator 2026.
+El bot puede atender muchos servidores con una sola instalación. Cada servidor se registra como una comunidad independiente en Supabase y sus estadísticas quedan separadas.
 
 ## Qué mide
-- Mensajes enviados en canales de texto del servidor (solo cuenta; no lee ni guarda el contenido).
-- Minutos en canales de voz visibles para el bot.
-- Ranking por cantidad de mensajes, mostrando también minutos de voz.
-- Consulta individual con `/actividad`.
+- Cantidad de mensajes por día (no lee ni guarda el contenido).
+- Minutos acumulados en canales de voz visibles para el bot.
+- Ranking de actividad y consulta individual.
 
-## Privacidad
-- No registra contenido de mensajes, adjuntos, enlaces, mensajes directos ni presencia/estado en línea.
-- `/privacidad` explica los datos guardados.
-- Cada miembro puede usar `/desactivar-estadisticas` y `/activar-estadisticas`. Desactivar detiene el registro futuro; las estadísticas anteriores permanecen. `/borrar-mis-estadisticas` elimina sus estadísticas históricas y desactiva el registro.
-- Publica un aviso en las reglas del servidor antes de activar el bot. El propietario debe cumplir las reglas y requisitos de privacidad de Discord y las normas aplicables a su comunidad.
-- Los minutos de voz se calculan al salir del canal y se asignan al día UTC de salida. Si el bot está desconectado, el cálculo de esa sesión puede ser impreciso.
+## Comandos
+- `/configurar-servidor`: lo ejecuta un administrador para registrar su servidor.
+- `/actividad`: consulta las estadísticas propias en ese servidor.
+- `/ranking`: muestra el ranking de ese servidor.
+- `/privacidad`: explica los datos registrados.
+- `/desactivar-estadisticas` y `/activar-estadisticas`: controla el registro futuro.
+- `/borrar-mis-estadisticas`: elimina el historial personal de ese servidor y desactiva el registro.
 
-## Configuración
+## Privacidad y separación
+- No registra textos, archivos, enlaces, mensajes directos ni presencia en línea.
+- La preferencia de privacidad se aplica por separado en cada servidor.
+- Los datos se consultan usando el identificador interno de la comunidad asociada al servidor; el bot no mezcla rankings entre servidores.
+- Publica un aviso de privacidad en cada servidor antes de activar el registro.
+- Los minutos de voz se contabilizan al salir del canal y se asignan al día UTC de salida. Una desconexión del bot puede afectar la precisión de una sesión en curso.
+
+## Instalación
 
 1. Crea una aplicación y un bot en Discord Developer Portal.
-2. Invítalo al servidor con los scopes `bot` y `applications.commands`, y permisos View Channels y Send Messages. Asegúrate de que pueda ver los canales de voz que quieras medir.
-3. No habilites Message Content Intent: este bot no necesita leer el contenido de los mensajes. Usa los intents Guilds, GuildMessages y GuildVoiceStates.
-4. En Supabase, ejecuta primero `backend/supabase/schema.sql` y luego `backend/supabase/discord_activity.sql`.
-5. Crea un archivo de entorno basado en `.env.example` en el host privado donde ejecutarás el bot. Completa token, client ID, guild ID, URL/clave de Supabase y el UUID de la comunidad.
-6. Configura `SUPABASE_SERVICE_ROLE_KEY` como secreto privado del host, nunca en GitHub Pages, en el navegador ni en este repositorio.
-7. Ejecuta `npm install` y `npm start`.
+2. Invítalo a los servidores con los scopes `bot` y `applications.commands`, y permisos para ver canales y enviar respuestas. Debe poder ver los canales de voz que se medirán.
+3. Activa los intents Guilds, GuildMessages y GuildVoiceStates. No habilites Message Content Intent.
+4. En Supabase SQL Editor, ejecuta en este orden:
+   - `backend/supabase/schema.sql` (solo si aún no se había ejecutado).
+   - `backend/supabase/discord_activity.sql` (solo si aún no se había ejecutado).
+   - `backend/supabase/discord_multi_server.sql` (nueva migración).
+5. En el host privado, configura `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` usando las variables de `.env.example`.
+6. Mantén `SUPABASE_SERVICE_ROLE_KEY` como secreto privado del host. Nunca la publiques en GitHub, GitHub Pages, el navegador ni Discord.
+7. Instala y ejecuta: `npm install` y `npm start`.
+8. Invita el bot a cada servidor. Un administrador ejecuta `/configurar-servidor` una vez en cada servidor.
 
-Al iniciar, el bot registra sus comandos de servidor. En Discord estarán disponibles `/actividad`, `/ranking`, `/privacidad`, `/desactivar-estadisticas`, `/activar-estadisticas` y `/borrar-mis-estadisticas`.
+Los comandos se registran globalmente en Discord; su aparición puede tardar un poco en propagarse. Un servidor sin configurar no registra actividad.
 
-## Límites
-El bot debe mantenerse encendido en un host que admita procesos Node.js. GitHub Pages no puede alojarlo. Esta carpeta contiene el código, no una instalación ni un bot ya conectado. Una comunidad de Discord se vincula a una comunidad del portal mediante `COMMUNITY_ID`.
+## Alojamiento
+El bot necesita un host que mantenga un proceso Node.js activo. GitHub Pages solo aloja la web y no puede ejecutar este bot.
