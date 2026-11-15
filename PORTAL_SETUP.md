@@ -13,8 +13,8 @@ La base preparada aquí usa **Supabase** para autenticación y datos compartidos
 1. Crear un proyecto Supabase propio.
 2. Abrir **SQL Editor** en Supabase.
 3. Copiar y ejecutar el contenido de `backend/supabase/schema.sql`.
-4. En **Authentication → Providers**, habilitar el proveedor de correo que se vaya a usar y revisar los ajustes de confirmación.
-5. En **Project Settings → API**, copiar el Project URL y la clave publicable (o anon key heredada).
+4. En **Authentication → Providers → Email**, mantener habilitado Email/Password. En los ajustes de autenticación, desactivar **Confirm email**: el portal utiliza un identificador interno no enrutable, no una dirección real. No se enviarán correos de confirmación ni habrá recuperación por correo.
+5. En **Project Settings → API Keys**, copiar el Project URL y la clave publicable (`sb_publishable_...`) o la clave pública heredada `anon`.
 6. La interfaz podrá conectarse cuando se añadan esos dos valores de configuración. No compartir claves secretas en el chat ni subirlas al repositorio.
 
 ## Modelo de permisos
@@ -53,10 +53,10 @@ Se añadió `portal.html` como primera pantalla de autenticación y gestión de 
 2. En Supabase → Project Settings → API Keys, copia la **Publishable key** (normalmente empieza por `sb_publishable_`). También puede usarse la clave pública heredada `anon`.
 3. Abre `scripts/supabase-config.js` y reemplaza únicamente `PEGA_AQUI_TU_PROJECT_URL` y `PEGA_AQUI_TU_PUBLISHABLE_KEY`.
 4. Publica los cambios y abre `/portal.html`.
-5. Crea una cuenta con correo y contraseña. Si Supabase exige confirmación de correo, confirma el mensaje recibido y vuelve al portal para iniciar sesión.
+5. Crea una cuenta con un nombre de usuario único (3–20 caracteres: letras minúsculas, números y guion bajo) y una contraseña de al menos 8 caracteres. El portal convierte internamente el usuario en un identificador técnico `@accounts.ss26.invalid`; no es una dirección real ni se utiliza para enviar mensajes.
 6. Crea una comunidad. El portal crea el perfil, registra la comunidad y el trigger SQL añade automáticamente al creador como `owner` e inicializa su estado.
 7. El UUID de la comunidad aparece en pantalla y se puede usar como `COMMUNITY_ID` en el host privado del bot.
 
-La clave Publishable/anon está diseñada para uso público con RLS activado. **No introducir jamás `sb_secret_`, `service_role`, tokens ni contraseñas en el archivo de configuración del navegador o en GitHub.**
+El acceso visible es únicamente con nombre de usuario y contraseña. No se solicita correo y no existe recuperación de contraseña en esta versión. Si alguien pierde su contraseña, no podrá recuperar esa cuenta. La clave Publishable/anon está diseñada para uso público con RLS activado. **No introducir jamás `sb_secret_`, `service_role`, tokens ni contraseñas en el archivo de configuración del navegador o en GitHub.**
 
 La pantalla nueva es una primera integración de autenticación y comunidades; todavía no sincroniza automáticamente el estado completo del simulador (clubes, jugadores, partidos) con `community_state`. Esa integración queda como siguiente fase.
