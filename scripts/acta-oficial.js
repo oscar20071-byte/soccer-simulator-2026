@@ -41,6 +41,7 @@
             .filter(e => e.type === 'Lesión')
             .map(e => ({ minute: e.minute, player: e.player, team: e.team }));
           localStorage.setItem('ss26v21_matches', JSON.stringify(matches));
+          if (typeof render === 'function' && page === 'matches') render();
         }
       } catch (error) {
         console.error('No se pudo completar el acta del partido:', error);
@@ -100,7 +101,7 @@
       ? injuries.map(i => `• ${i.minute}' — ${i.player} (${i.team})`).join('\n')
       : '• Plantillas sin lesiones reportadas.';
     const randomText = random.length ? random.map(x => '• ' + x).join('\n') : '• Sin sucesos especiales en este encuentro.';
-    const stats = `Posesión ${s.homePossession ?? 50}%-${s.awayPossession ?? 50}% | Remates ${s.homeShots ?? 0}-${s.awayShots ?? 0} | A puerta ${s.homeShotsOnTarget ?? 0}-${s.awayShotsOnTarget ?? 0}`;
+    const stats = `Posesión estimada ${s.homePossession ?? 50}%-${s.awayPossession ?? 50}% | Remates ${s.homeShots ?? 0}-${s.awayShots ?? 0} | A puerta ${s.homeShotsOnTarget ?? 0}-${s.awayShotsOnTarget ?? 0}`;
     const best = ratings[0]?.name || match.mvp || 'Sin MVP';
     return `🏆 **ACTA OFICIAL DEL PARTIDO • SOCCER SIMULATOR 2026**
 📌 **Competición:** ${match.competition || 'Partido amistoso'}
