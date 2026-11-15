@@ -147,6 +147,45 @@ client.once(Events.ClientReady, async readyClient => {
     for (const row of data || []) {
       communityByGuild.set(row.guild_id, row.community_id);
       await loadOptOuts(row.guild_id, row.community_id);
+
+      // Reset open voice sessions after a restart so bot downtime is not
+      // incorrectly counted as time spent in voice.
+      const guild = await client.guilds.fetch(row.guild_id);
+      const { data: sessions, error: sessionsError } = await supabase
+        .from("discord_voice_sessions")
+        .select("discord_user_id")
+        .eq("guild_id", row.guild_id);
+      if (sessionsError) throw sessionsError;
+
+      for (const session of sessions || []) {
+        const voiceState = guild.voiceStates.cache.get(session.discord_user_id);
+        if (!isOptedOut(row.guild_id, session.discord_user_id) &&
+            isTrackable(voiceState?.channelId, guild)) {
+          const { error: resetError } = await supabase
+            .from("discord_voice_sessions")
+            .update({
+              channel_id: voiceState.channelId,
+              joined_at: new Date().toISOString()
+            })
+            .eq("guild_id", row.guild_id)
+            .eq("discord_user_id", session.discord_user_id);
+          if (resetError) throw resetError;
+        } else {
+          const { error: deleteError } = await supabase
+            .from("discord_voice_sessions")
+            .delete()
+            .eq("guild_id", row.guild_id)
+            .eq("discord_user_id", session.discord_user_id);
+          if (deleteError) throw deleteError;
+        }
+      }
+
+      for (const voiceState of guild.voiceStates.cache.values()) {
+        if (!isOptedOut(row.guild_id, voiceState.id) &&
+            isTrackable(voiceState.channelId, guild)) {
+          await startVoice(row.guild_id, row.community_id, voiceState.id, voiceState.channelId);
+        }
+      }
     }
 
     const rest = new REST({ version: "10" }).setToken(DISCORD_TOKEN);
