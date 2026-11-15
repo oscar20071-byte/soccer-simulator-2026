@@ -6,6 +6,7 @@ const {
   Client,
   Events,
   GatewayIntentBits,
+  PermissionFlagsBits,
   REST,
   Routes,
   SlashCommandBuilder
@@ -15,10 +16,8 @@ const { createClient } = require("@supabase/supabase-js");
 const required = [
   "DISCORD_TOKEN",
   "DISCORD_CLIENT_ID",
-  "DISCORD_GUILD_ID",
   "SUPABASE_URL",
-  "SUPABASE_SERVICE_ROLE_KEY",
-  "COMMUNITY_ID"
+  "SUPABASE_SERVICE_ROLE_KEY"
 ];
 for (const name of required) {
   if (!process.env[name]) throw new Error("Falta la variable de entorno " + name);
@@ -27,11 +26,8 @@ for (const name of required) {
 const {
   DISCORD_TOKEN,
   DISCORD_CLIENT_ID,
-  DISCORD_GUILD_ID,
   SUPABASE_URL,
-  SUPABASE_SERVICE_ROLE_KEY,
-  COMMUNITY_ID,
-  DISCORD_AFK_CHANNEL_ID
+  SUPABASE_SERVICE_ROLE_KEY
 } = process.env;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
@@ -46,9 +42,13 @@ const client = new Client({
   ]
 });
 
+const communityByGuild = new Map();
 const optedOut = new Set();
 
 const commands = [
+  new SlashCommandBuilder()
+    .setName("configurar-servidor")
+    .setDescription("Registra este servidor para activar sus estadísticas."),
   new SlashCommandBuilder()
     .setName("actividad")
     .setDescription("Consulta tus estadísticas de actividad del servidor."),
@@ -69,25 +69,70 @@ const commands = [
     .setDescription("Elimina tus estadísticas históricas de este servidor.")
 ].map(command => command.toJSON());
 
-function isTrackable(channelId) {
-  return Boolean(channelId) && channelId !== DISCORD_AFK_CHANNEL_ID;
+function preferenceKey(guildId, userId) {
+  return guildId + ":" + userId;
 }
 
-async function startVoice(userId, channelId) {
+function isOptedOut(guildId, userId) {
+  return optedOut.has(preferenceKey(guildId, userId));
+}
+
+function isTrackable(channelId, guild) {
+  return Boolean(channelId) && channelId !== guild?.afkChannelId;
+}
+
+async function getCommunityId(guildId) {
+  if (communityByGuild.has(guildId)) return communityByGuild.get(guildId);
+
+  const { data, error } = await supabase
+    .from("discord_guilds")
+    .select("community_id")
+    .eq("guild_id", guildId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+
+  communityByGuild.set(guildId, data.community_id);
+  return data.community_id;
+}
+
+async function loadOptOuts(guildId, communityId) {
+  const { data, error } = await supabase
+    .from("discord_activity_preferences")
+    .select("discord_user_id")
+    .eq("community_id", communityId)
+    .eq("enabled", false);
+  if (error) throw error;
+
+  for (const row of data || []) {
+    optedOut.add(preferenceKey(guildId, row.discord_user_id));
+  }
+}
+
+async function startVoice(guildId, communityId, userId, channelId) {
   const { error } = await supabase.rpc("start_discord_voice_session", {
-    p_community_id: COMMUNITY_ID,
-    p_guild_id: DISCORD_GUILD_ID,
+    p_community_id: communityId,
+    p_guild_id: guildId,
     p_discord_user_id: userId,
     p_channel_id: channelId
   });
   if (error) throw error;
 }
 
-async function finishVoice(userId) {
+async function finishVoice(guildId, userId) {
   const { error } = await supabase.rpc("finish_discord_voice_session", {
-    p_guild_id: DISCORD_GUILD_ID,
+    p_guild_id: guildId,
     p_discord_user_id: userId,
     p_ended_at: new Date().toISOString()
+  });
+  if (error) throw error;
+}
+
+async function recordMessage(guildId, communityId, userId) {
+  const { error } = await supabase.rpc("record_discord_message", {
+    p_community_id: communityId,
+    p_discord_user_id: userId,
+    p_activity_date: new Date().toISOString().slice(0, 10)
   });
   if (error) throw error;
 }
@@ -95,76 +140,57 @@ async function finishVoice(userId) {
 client.once(Events.ClientReady, async readyClient => {
   try {
     const { data, error } = await supabase
-      .from("discord_activity_preferences")
-      .select("discord_user_id")
-      .eq("community_id", COMMUNITY_ID)
-      .eq("enabled", false);
+      .from("discord_guilds")
+      .select("guild_id,community_id");
     if (error) throw error;
-    for (const row of data || []) optedOut.add(row.discord_user_id);
 
-    // Reconcile voice sessions after a restart so stale sessions are closed
-    // and members currently in voice can continue being measured.
-    const guild = await client.guilds.fetch(DISCORD_GUILD_ID);
-    const { data: openSessions, error: sessionsError } = await supabase
-      .from("discord_voice_sessions")
-      .select("discord_user_id")
-      .eq("guild_id", DISCORD_GUILD_ID);
-    if (sessionsError) throw sessionsError;
-
-    for (const session of openSessions || []) {
-      const voiceState = guild.voiceStates.cache.get(session.discord_user_id);
-      if (optedOut.has(session.discord_user_id) ||
-          !voiceState || !isTrackable(voiceState.channelId)) {
-        await finishVoice(session.discord_user_id);
-      } else {
-        await startVoice(session.discord_user_id, voiceState.channelId);
-      }
-    }
-
-    for (const voiceState of guild.voiceStates.cache.values()) {
-      if (!optedOut.has(voiceState.id) && isTrackable(voiceState.channelId)) {
-        await startVoice(voiceState.id, voiceState.channelId);
-      }
+    for (const row of data || []) {
+      communityByGuild.set(row.guild_id, row.community_id);
+      await loadOptOuts(row.guild_id, row.community_id);
     }
 
     const rest = new REST({ version: "10" }).setToken(DISCORD_TOKEN);
     await rest.put(
-      Routes.applicationGuildCommands(DISCORD_CLIENT_ID, DISCORD_GUILD_ID),
+      Routes.applicationCommands(DISCORD_CLIENT_ID),
       { body: commands }
     );
-    console.log("Bot de estadísticas conectado como " + readyClient.user.tag);
+
+    console.log(
+      "Bot conectado como " + readyClient.user.tag +
+      ". Servidores configurados: " + communityByGuild.size
+    );
   } catch (error) {
-    console.error("No se pudo iniciar el módulo de estadísticas:", error.message);
+    console.error("No se pudo completar la inicialización:", error.message);
   }
 });
 
 client.on(Events.MessageCreate, async message => {
-  if (!message.guild || message.guild.id !== DISCORD_GUILD_ID ||
-      message.author.bot || optedOut.has(message.author.id)) return;
+  if (!message.guild || message.author.bot ||
+      isOptedOut(message.guild.id, message.author.id)) return;
 
   try {
-    const { error } = await supabase.rpc("record_discord_message", {
-      p_community_id: COMMUNITY_ID,
-      p_discord_user_id: message.author.id,
-      p_activity_date: new Date().toISOString().slice(0, 10)
-    });
-    if (error) throw error;
+    const communityId = await getCommunityId(message.guild.id);
+    if (!communityId) return;
+    await recordMessage(message.guild.id, communityId, message.author.id);
   } catch (error) {
     console.error("No se pudo registrar actividad de mensaje:", error.message);
   }
 });
 
 client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
-  if (newState.guild.id !== DISCORD_GUILD_ID) return;
+  const guild = newState.guild;
+  const guildId = guild.id;
   const userId = newState.id;
-  if (oldState.channelId === newState.channelId) return;
+  if (oldState.channelId === newState.channelId ||
+      isOptedOut(guildId, userId)) return;
 
   try {
-    if (oldState.channelId && !optedOut.has(userId)) {
-      await finishVoice(userId);
-    }
-    if (isTrackable(newState.channelId) && !optedOut.has(userId)) {
-      await startVoice(userId, newState.channelId);
+    const communityId = await getCommunityId(guildId);
+    if (!communityId) return;
+
+    if (oldState.channelId) await finishVoice(guildId, userId);
+    if (isTrackable(newState.channelId, guild)) {
+      await startVoice(guildId, communityId, userId, newState.channelId);
     }
   } catch (error) {
     console.error("No se pudo actualizar tiempo de voz:", error.message);
@@ -172,10 +198,45 @@ client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
 });
 
 client.on(Events.InteractionCreate, async interaction => {
-  if (!interaction.isChatInputCommand() || interaction.guildId !== DISCORD_GUILD_ID) return;
+  if (!interaction.isChatInputCommand() || !interaction.inGuild()) return;
+
+  const guildId = interaction.guildId;
   const userId = interaction.user.id;
 
   try {
+    if (interaction.commandName === "configurar-servidor") {
+      if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
+        return interaction.reply({
+          ephemeral: true,
+          content: "Solo un administrador del servidor puede ejecutar esta configuración."
+        });
+      }
+
+      await interaction.deferReply({ ephemeral: true });
+      const { data, error } = await supabase.rpc("register_discord_guild", {
+        p_guild_id: guildId,
+        p_guild_name: interaction.guild.name,
+        p_configured_by: userId
+      });
+      if (error) throw error;
+
+      const communityId = data;
+      communityByGuild.set(guildId, communityId);
+      await loadOptOuts(guildId, communityId);
+
+      return interaction.editReply(
+        "Este servidor quedó configurado correctamente. Sus estadísticas estarán separadas de las de otros servidores."
+      );
+    }
+
+    const communityId = await getCommunityId(guildId);
+    if (!communityId) {
+      return interaction.reply({
+        ephemeral: true,
+        content: "Este servidor todavía no está configurado. Un administrador debe ejecutar /configurar-servidor."
+      });
+    }
+
     if (interaction.commandName === "privacidad") {
       return interaction.reply({
         ephemeral: true,
@@ -184,10 +245,10 @@ client.on(Events.InteractionCreate, async interaction => {
     }
 
     if (interaction.commandName === "desactivar-estadisticas") {
-      optedOut.add(userId);
-      await finishVoice(userId);
+      optedOut.add(preferenceKey(guildId, userId));
+      await finishVoice(guildId, userId);
       const { error } = await supabase.from("discord_activity_preferences").upsert({
-        community_id: COMMUNITY_ID,
+        community_id: communityId,
         discord_user_id: userId,
         enabled: false,
         updated_at: new Date().toISOString()
@@ -201,16 +262,17 @@ client.on(Events.InteractionCreate, async interaction => {
 
     if (interaction.commandName === "activar-estadisticas") {
       const { error } = await supabase.from("discord_activity_preferences").upsert({
-        community_id: COMMUNITY_ID,
+        community_id: communityId,
         discord_user_id: userId,
         enabled: true,
         updated_at: new Date().toISOString()
       });
       if (error) throw error;
-      optedOut.delete(userId);
+      optedOut.delete(preferenceKey(guildId, userId));
+
       const voiceState = interaction.guild.voiceStates.cache.get(userId);
-      if (isTrackable(voiceState?.channelId)) {
-        await startVoice(userId, voiceState.channelId);
+      if (isTrackable(voiceState?.channelId, interaction.guild)) {
+        await startVoice(guildId, communityId, userId, voiceState.channelId);
       }
       return interaction.reply({
         ephemeral: true,
@@ -219,28 +281,32 @@ client.on(Events.InteractionCreate, async interaction => {
     }
 
     if (interaction.commandName === "borrar-mis-estadisticas") {
-      optedOut.add(userId);
+      optedOut.add(preferenceKey(guildId, userId));
+
       const { error: sessionDeleteError } = await supabase
         .from("discord_voice_sessions")
         .delete()
-        .eq("guild_id", DISCORD_GUILD_ID)
+        .eq("guild_id", guildId)
         .eq("discord_user_id", userId);
       if (sessionDeleteError) throw sessionDeleteError;
+
       const { error: deleteError } = await supabase
         .from("discord_activity_daily")
         .delete()
-        .eq("community_id", COMMUNITY_ID)
+        .eq("community_id", communityId)
         .eq("discord_user_id", userId);
       if (deleteError) throw deleteError;
+
       const { error: preferenceError } = await supabase
         .from("discord_activity_preferences")
         .upsert({
-          community_id: COMMUNITY_ID,
+          community_id: communityId,
           discord_user_id: userId,
           enabled: false,
           updated_at: new Date().toISOString()
         });
       if (preferenceError) throw preferenceError;
+
       return interaction.reply({
         ephemeral: true,
         content: "Tus estadísticas históricas fueron eliminadas y el registro futuro quedó desactivado. Puedes volver a activarlo con /activar-estadisticas."
@@ -251,20 +317,21 @@ client.on(Events.InteractionCreate, async interaction => {
       const { data, error } = await supabase
         .from("discord_activity_daily")
         .select("message_count,voice_minutes")
-        .eq("community_id", COMMUNITY_ID)
+        .eq("community_id", communityId)
         .eq("discord_user_id", userId)
         .limit(1000);
       if (error) throw error;
+
       const totals = (data || []).reduce((sum, row) => ({
         messages: sum.messages + row.message_count,
         minutes: sum.minutes + row.voice_minutes
       }), { messages: 0, minutes: 0 });
-      const hours = Math.floor(totals.minutes / 60);
-      const minutes = totals.minutes % 60;
+
       return interaction.reply({
         ephemeral: true,
         content: "**Tus estadísticas de Discord**\nMensajes contabilizados: **" +
-          totals.messages + "**\nTiempo en voz: **" + hours + " h " + minutes + " min**"
+          totals.messages + "**\nTiempo en voz: **" +
+          Math.floor(totals.minutes / 60) + " h " + (totals.minutes % 60) + " min**"
       });
     }
 
@@ -272,9 +339,10 @@ client.on(Events.InteractionCreate, async interaction => {
       const { data, error } = await supabase
         .from("discord_activity_daily")
         .select("discord_user_id,message_count,voice_minutes")
-        .eq("community_id", COMMUNITY_ID)
+        .eq("community_id", communityId)
         .limit(5000);
       if (error) throw error;
+
       const totals = new Map();
       for (const row of data || []) {
         const item = totals.get(row.discord_user_id) || { messages: 0, minutes: 0 };
@@ -282,17 +350,18 @@ client.on(Events.InteractionCreate, async interaction => {
         item.minutes += row.voice_minutes;
         totals.set(row.discord_user_id, item);
       }
+
       const top = [...totals.entries()]
         .sort((a, b) => b[1].messages - a[1].messages)
         .slice(0, 10);
       if (!top.length) {
         return interaction.reply("Todavía no hay estadísticas registradas.");
       }
-      const lines = await Promise.all(top.map(async ([id, stats], index) => {
-        const name = "<@" + id + ">";
-        return (index + 1) + ". **" + name + "** — " + stats.messages +
-          " mensajes · " + stats.minutes + " min en voz";
-      }));
+
+      const lines = top.map(([id, stats], index) =>
+        (index + 1) + ". **<@" + id + ">** — " + stats.messages +
+        " mensajes · " + stats.minutes + " min en voz"
+      );
       return interaction.reply({
         content: "**Ranking de actividad**\n" + lines.join("\n")
       });
@@ -301,7 +370,7 @@ client.on(Events.InteractionCreate, async interaction => {
     console.error("Error al procesar comando:", error.message);
     const response = {
       ephemeral: true,
-      content: "No se pudo consultar o actualizar la actividad. Revisa la configuración del bot."
+      content: "No se pudo completar la operación. Revisa la configuración del bot."
     };
     if (interaction.replied || interaction.deferred) {
       return interaction.followUp(response);
