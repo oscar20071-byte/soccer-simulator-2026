@@ -245,7 +245,17 @@ client.on(Events.InteractionCreate, async interaction => {
   const userId = interaction.user.id;
 
   try {
-    const guild = interaction.guild ?? await client.guilds.fetch(guildId);
+    console.log("DEBUG servidor:", {
+  guildId: interaction.guildId,
+  guildDisponible: Boolean(interaction.guild),
+  guildEnCache: client.guilds.cache.has(interaction.guildId)
+});
+
+const guild = interaction.guild;
+
+if (!guild) {
+  throw new Error("La interacción no contiene información del servidor.");
+}
 
     if (interaction.commandName === "configurar-servidor") {
       if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
