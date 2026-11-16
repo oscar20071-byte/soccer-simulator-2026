@@ -300,7 +300,7 @@ function crest(t){return t.crest?`<img class="crest" src="${t.crest}">`:'<span c
 function avatar(p){return p.photo?`<img class="avatar" src="${p.photo}">`:'<span class="avatar">♟</span>'}
 function clubPlayers(n){return players.filter(p=>p.team===n)}
 function normalizeRole(value){
- const raw=String(value||'').trim().toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/\\s+/g,'');
+ const raw=String(value||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'');
  const aliases={principal:'principal',secundario:'secundario',terciario:'terciario',cuaternario:'cuaternario',cuarto:'cuaternario',quinto:'quintario',quintario:'quintario',sexto:'sextario',sextario:'sextario',septimo:'septenario',septenario:'septenario',octavo:'octavario',octavario:'octavario',noveno:'novenario',novenario:'novenario',decimo:'decenario',decenario:'decenario'};
  return aliases[raw]||'';
 }
@@ -325,25 +325,25 @@ function teamMatchPool(name){
  return [...first,...rest.filter(p=>!first.some(x=>x.id===p.id))];
 }
 function parseClubHeader(line){
- const m=String(line||'').trim().match(/^(.+?)\\s*\\(\\s*(\\d{1,3})\\s*\\)$/);
+ const m=String(line||'').trim().match(/^(.+?)\s*\(\s*(\d{1,3})\s*\)$/);
  if(!m)return {name:String(line||'').trim(),rating:70};
  const rating=Number(m[2]);
  if(rating<1||rating>100)throw new Error('El nivel debe estar entre 1 y 100: '+line);
  return {name:m[1].trim(),rating};
 }
 function importClubLines(raw){
- const parsed=raw.split(/\\r?\\n/).map(x=>x.trim()).filter(Boolean).map(parseClubHeader);
+ const parsed=raw.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).map(parseClubHeader);
  if(!parsed.length)throw new Error('Escribe al menos un club.');
  const names=new Set(teams.map(t=>t.name.toLowerCase()));
  for(const t of parsed){if(!t.name||names.has(t.name.toLowerCase()))throw new Error('Nombre vacío o club duplicado: '+t.name);names.add(t.name.toLowerCase())}
  parsed.forEach(t=>teams.push({id:uid(),name:t.name,rating:t.rating,crest:'',stadium:'Estadio Municipal',capacity:25000,division:1,startingLineup:[]}));
 }
 function importSquadBlock(raw){
- const lines=raw.split(/\\r?\\n/).map(x=>x.trim()).filter(Boolean);
+ const lines=raw.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
  if(lines.length<2)throw new Error('Incluye el club y al menos un jugador.');
  const header=parseClubHeader(lines[0]),positions=['POR','DFC','LI','LD','MCD','MC','MCO','EI','ED','DC'],entries=[];
  for(const line of lines.slice(1)){
-  const m=line.match(/^([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]{2,4})\\s*:\\s*(.*?)\\s*\\|\\s*(.*?)\\s*(?:\\|\\s*(.*))?$/);
+  const m=line.match(/^([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]{2,4})\s*:\s*(.*?)\s*\|\s*(.*?)\s*(?:\|\s*(.*))?$/);
   if(!m)throw new Error('Formato incorrecto: '+line);
   const position=m[1].toUpperCase(),name=m[2].trim(),username=m[3].trim(),role=normalizeRole(m[4]||'');
   if(!positions.includes(position))throw new Error('Posición no reconocida: '+position);
