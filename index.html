@@ -524,8 +524,8 @@ function copyFallback(text){
 function play(home,away,competition='',fixture=null){
  if(home===away)return toast('Elige dos clubes diferentes.');
 
- const hPlayers=clubPlayers(home).filter(p=>!p.stats.injury&&!p.stats.suspension).sort((a,b)=>b.rating-a.rating);
- const aPlayers=clubPlayers(away).filter(p=>!p.stats.injury&&!p.stats.suspension).sort((a,b)=>b.rating-a.rating);
+ const hPlayers=teamMatchPool(home);
+ const aPlayers=teamMatchPool(away);
 
  if(hPlayers.length<11||aPlayers.length<11)
   return toast('Cada equipo necesita 11 jugadores disponibles.');
@@ -608,13 +608,13 @@ if(settings.substitutions){
  for(const [club,num,line] of [[home,hg,hline],[away,ag,aline]]){
   for(let i=0;i<num;i++){
    let attackers=line.filter(p=>p.position!=='POR');
-   let scorer=attackers[Math.floor(Math.random()*attackers.length)];
-   if(!scorer)continue;
+   const positionFactor=p=>({DC:1.8,ED:1.5,EI:1.5,MCO:1.35,MC:1.05,MCD:.75,DFC:.55,LD:.6,LI:.6}[p.position]||1);
+   let scorer=weightedChoice(attackers,p=>roleWeight(p)*positionFactor(p));
 
    let assist=null;
    if(Math.random()<.72){
     let possible=line.filter(p=>p.id!==scorer.id&&p.position!=='POR');
-    assist=possible[Math.floor(Math.random()*possible.length)]||null;
+    assist=weightedChoice(possible,p=>roleWeight(p)*positionFactor(p))||null;
    }
 
    let minute=1+Math.floor(Math.random()*90);
