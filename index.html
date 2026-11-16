@@ -342,6 +342,7 @@ function importSquadBlock(raw){
  const lines=raw.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
  if(lines.length<2)throw new Error('Incluye el club y al menos un jugador.');
  const header=parseClubHeader(lines[0]),positions=['POR','DFC','LI','LD','MCD','MC','MCO','EI','ED','DC'],entries=[];
+ if(!header.name)throw new Error('Falta el nombre del club o selección.');
  for(const line of lines.slice(1)){
   const m=line.match(/^([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]{2,4})\s*:\s*(.*?)\s*\|\s*(.*?)\s*(?:\|\s*(.*))?$/);
   if(!m)throw new Error('Formato incorrecto: '+line);
@@ -351,13 +352,12 @@ function importSquadBlock(raw){
   entries.push({position,name,username,role});
  }
  let team=teams.find(t=>t.name.toLowerCase()===header.name.toLowerCase());
- const existing=clubPlayers(header.name);
  for(const item of entries){if(players.some(p=>p.team===header.name&&(String(p.username||'').toLowerCase()===item.username.toLowerCase()||p.name.toLowerCase()===item.name.toLowerCase())))throw new Error('Jugador duplicado: '+item.name)}
  if(!team){team={id:uid(),name:header.name,rating:header.rating,crest:'',stadium:'Estadio Municipal',capacity:25000,division:1,startingLineup:[]};teams.push(team)}
  else if(lines[0].includes('('))team.rating=header.rating;
  const used=new Set(clubPlayers(team.name).map(p=>Number(p.number))),newPlayers=[];
  for(const item of entries){
-  if(players.some(p=>p.team===team.name&&(String(p.username||'').toLowerCase()===item.username.toLowerCase()||p.name.toLowerCase()===item.name.toLowerCase()))||newPlayers.some(p=>p.username.toLowerCase()===item.username.toLowerCase()))throw new Error('Jugador duplicado: '+item.name);
+  if(players.some(p=>p.team===team.name&&(String(p.username||'').toLowerCase()===item.username.toLowerCase()||p.name.toLowerCase()===item.name.toLowerCase()))||newPlayers.some(p=>p.username.toLowerCase()===item.username.toLowerCase()||p.name.toLowerCase()===item.name.toLowerCase()))throw new Error('Jugador duplicado: '+item.name);
   let number=1;while(used.has(number)&&number<=99)number++;if(number>99)throw new Error('No quedan dorsales libres.');
   used.add(number);
   newPlayers.push(initPlayer({id:uid(),name:item.name,username:item.username,country:'',team:team.name,age:20,position:item.position,number,rating:Math.max(1,Math.min(100,team.rating||70)),lineupRole:item.role,photo:''}));
