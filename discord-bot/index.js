@@ -6,6 +6,7 @@ const {
   Client,
   Events,
   GatewayIntentBits,
+  MessageFlags,
   PermissionFlagsBits,
   REST,
   Routes,
@@ -139,6 +140,13 @@ async function recordMessage(guildId, communityId, userId) {
 
 client.once(Events.ClientReady, async readyClient => {
   try {
+    const rest = new REST({ version: "10" }).setToken(DISCORD_TOKEN);
+    await rest.put(
+      Routes.applicationCommands(DISCORD_CLIENT_ID),
+      { body: commands }
+    );
+    console.log("Comandos globales de Discord registrados.");
+
     const { data, error } = await supabase
       .from("discord_guilds")
       .select("guild_id,community_id");
@@ -187,12 +195,6 @@ client.once(Events.ClientReady, async readyClient => {
         }
       }
     }
-
-    const rest = new REST({ version: "10" }).setToken(DISCORD_TOKEN);
-    await rest.put(
-      Routes.applicationCommands(DISCORD_CLIENT_ID),
-      { body: commands }
-    );
 
     console.log(
       "Bot conectado como " + readyClient.user.tag +
@@ -243,18 +245,20 @@ client.on(Events.InteractionCreate, async interaction => {
   const userId = interaction.user.id;
 
   try {
+    const guild = interaction.guild ?? await client.guilds.fetch(guildId);
+
     if (interaction.commandName === "configurar-servidor") {
       if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
         return interaction.reply({
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
           content: "Solo un administrador del servidor puede ejecutar esta configuración."
         });
       }
 
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       const { data, error } = await supabase.rpc("register_discord_guild", {
         p_guild_id: guildId,
-        p_guild_name: interaction.guild.name,
+        p_guild_name: guild.name,
         p_configured_by: userId
       });
       if (error) throw error;
@@ -271,14 +275,14 @@ client.on(Events.InteractionCreate, async interaction => {
     const communityId = await getCommunityId(guildId);
     if (!communityId) {
       return interaction.reply({
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
         content: "Este servidor todavía no está configurado. Un administrador debe ejecutar /configurar-servidor."
       });
     }
 
     if (interaction.commandName === "privacidad") {
       return interaction.reply({
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
         content: "El bot guarda tu ID de Discord, el número de mensajes por día y los minutos acumulados en canales de voz. No guarda textos, archivos, enlaces, mensajes privados ni el contenido de conversaciones. Puedes desactivar el registro con /desactivar-estadisticas o borrar tus datos con /borrar-mis-estadisticas."
       });
     }
@@ -294,7 +298,7 @@ client.on(Events.InteractionCreate, async interaction => {
       });
       if (error) throw error;
       return interaction.reply({
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
         content: "El registro de tu actividad futura está desactivado. Las estadísticas anteriores se conservan."
       });
     }
@@ -309,12 +313,12 @@ client.on(Events.InteractionCreate, async interaction => {
       if (error) throw error;
       optedOut.delete(preferenceKey(guildId, userId));
 
-      const voiceState = interaction.guild.voiceStates.cache.get(userId);
-      if (isTrackable(voiceState?.channelId, interaction.guild)) {
+      const voiceState = guild.voiceStates.cache.get(userId);
+      if (isTrackable(voiceState?.channelId, guild)) {
         await startVoice(guildId, communityId, userId, voiceState.channelId);
       }
       return interaction.reply({
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
         content: "El registro de actividad está activado de nuevo."
       });
     }
@@ -347,7 +351,7 @@ client.on(Events.InteractionCreate, async interaction => {
       if (preferenceError) throw preferenceError;
 
       return interaction.reply({
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
         content: "Tus estadísticas históricas fueron eliminadas y el registro futuro quedó desactivado. Puedes volver a activarlo con /activar-estadisticas."
       });
     }
@@ -367,7 +371,7 @@ client.on(Events.InteractionCreate, async interaction => {
       }), { messages: 0, minutes: 0 });
 
       return interaction.reply({
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
         content: "**Tus estadísticas de Discord**\nMensajes contabilizados: **" +
           totals.messages + "**\nTiempo en voz: **" +
           Math.floor(totals.minutes / 60) + " h " + (totals.minutes % 60) + " min**"
@@ -408,7 +412,7 @@ client.on(Events.InteractionCreate, async interaction => {
   } catch (error) {
     console.error("Error al procesar comando:", error.message);
     const response = {
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
       content: "No se pudo completar la operación. Revisa la configuración del bot."
     };
     if (interaction.replied || interaction.deferred) {
