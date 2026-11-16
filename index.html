@@ -299,10 +299,113 @@ function shell(t,b){document.getElementById('sectionLabel').textContent=t.toUppe
 function crest(t){return t.crest?`<img class="crest" src="${t.crest}">`:'<span class="crest">⚽</span>'}
 function avatar(p){return p.photo?`<img class="avatar" src="${p.photo}">`:'<span class="avatar">♟</span>'}
 function clubPlayers(n){return players.filter(p=>p.team===n)}
+function normalizeRole(value){
+ const raw=String(value||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'');
+ const aliases={principal:'principal',secundario:'secundario',terciario:'terciario',cuaternario:'cuaternario',cuaternairo:'cuaternario',cuarto:'cuaternario',quinto:'quintario',quintario:'quintario',sexto:'sextario',sextario:'sextario',septimo:'septenario',septenario:'septenario',octavo:'octavario',octavario:'octavario',noveno:'novenario',novenario:'novenario',decimo:'decenario',decenario:'decenario',undecimo:'undecenario',undecenario:'undecenario',duodecimo:'duodecenario',duodecenario:'duodecenario',decimotercero:'terciodecenario',terciodecenario:'terciodecenario',decimocuarto:'cuartodecenario',cuartodecenario:'cuartodecenario',decimoquinto:'quintodecenario',quintodecenario:'quintodecenario'};
+ return aliases[raw]||'';
+}
+function roleWeight(p){
+ const weights={principal:4.2,secundario:2.8,terciario:1.9,cuaternario:1.35,quintario:1.2,sextario:1.1,septenario:1.05,octavario:1.02,novenario:1.01,decenario:1,undecenario:.99,duodecenario:.98,terciodecenario:.97,cuartodecenario:.96,quintodecenario:.95};
+ return weights[p.lineupRole]||1;
+}
+function weightedChoice(list,weightFn){
+ if(!list.length)return null;
+ const weights=list.map(x=>Math.max(.01,weightFn(x))),total=weights.reduce((a,b)=>a+b,0);
+ let r=Math.random()*total;
+ for(let i=0;i<list.length;i++){r-=weights[i];if(r<=0)return list[i]}
+ return list[list.length-1];
+}
+function teamMatchPool(name){
+ const available=clubPlayers(name).filter(p=>!p.stats.injury&&!p.stats.suspension);
+ const team=teams.find(t=>t.name===name);
+ const preferred=(team?.startingLineup||[]).map(id=>available.find(p=>p.id===id)).filter(Boolean);
+ const starters=preferred.filter((p,i,a)=>a.findIndex(x=>x.id===p.id)===i);
+ const rest=available.filter(p=>!starters.some(x=>x.id===p.id)).sort((a,b)=>b.rating-a.rating);
+ const first=[...starters,...rest].slice(0,11);
+ return [...first,...rest.filter(p=>!first.some(x=>x.id===p.id))];
+}
+function parseClubHeader(line){
+ const m=String(line||'').trim().match(/^(.+?)\s*\(\s*(\d{1,3})\s*\)$/);
+ if(!m)return {name:String(line||'').trim(),rating:70};
+ const rating=Number(m[2]);
+ if(rating<1||rating>100)throw new Error('El nivel debe estar entre 1 y 100: '+line);
+ return {name:m[1].trim(),rating};
+}
+function importClubLines(raw){
+ const parsed=raw.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).map(parseClubHeader);
+ if(!parsed.length)throw new Error('Escribe al menos un club.');
+ const names=new Set(teams.map(t=>t.name.toLowerCase()));
+ for(const t of parsed){if(!t.name||names.has(t.name.toLowerCase()))throw new Error('Nombre vacío o club duplicado: '+t.name);names.add(t.name.toLowerCase())}
+ parsed.forEach(t=>teams.push({id:uid(),name:t.name,rating:t.rating,crest:'',stadium:'Estadio Municipal',capacity:25000,division:1,startingLineup:[]}));
+}
+function importSquadBlock(raw){
+ const lines=raw.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+ if(lines.length<2)throw new Error('Incluye el club y al menos un jugador.');
+ const header=parseClubHeader(lines[0]),positions=['POR','DFC','LI','LD','MCD','MC','MCO','EI','ED','DC'],entries=[];
+ if(!header.name)throw new Error('Falta el nombre del club o selección.');
+ for(const line of lines.slice(1)){
+  const m=line.match(/^([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]{2,4})\s*:\s*(.*?)\s*\|\s*(.*?)\s*(?:\|\s*(.*))?$/);
+  if(!m)throw new Error('Formato incorrecto: '+line);
+  const position=m[1].toUpperCase(),name=m[2].trim(),username=m[3].trim(),role=normalizeRole(m[4]||'');
+  if(!positions.includes(position))throw new Error('Posición no reconocida: '+position);
+  if(!name||!username)throw new Error('Falta nombre o usuario: '+line);
+  entries.push({position,name,username,role});
+ }
+ let team=teams.find(t=>t.name.toLowerCase()===header.name.toLowerCase());
+ for(const item of entries){if(players.some(p=>p.team===header.name&&(String(p.username||'').toLowerCase()===item.username.toLowerCase()||p.name.toLowerCase()===item.name.toLowerCase())))throw new Error('Jugador duplicado: '+item.name)}
+ if(!team){team={id:uid(),name:header.name,rating:header.rating,crest:'',stadium:'Estadio Municipal',capacity:25000,division:1,startingLineup:[]};teams.push(team)}
+ else if(lines[0].includes('('))team.rating=header.rating;
+ const used=new Set(clubPlayers(team.name).map(p=>Number(p.number))),newPlayers=[];
+ for(const item of entries){
+  if(players.some(p=>p.team===team.name&&(String(p.username||'').toLowerCase()===item.username.toLowerCase()||p.name.toLowerCase()===item.name.toLowerCase()))||newPlayers.some(p=>p.username.toLowerCase()===item.username.toLowerCase()||p.name.toLowerCase()===item.name.toLowerCase()))throw new Error('Jugador duplicado: '+item.name);
+  let number=1;while(used.has(number)&&number<=99)number++;if(number>99)throw new Error('No quedan dorsales libres.');
+  used.add(number);
+  newPlayers.push(initPlayer({id:uid(),name:item.name,username:item.username,country:'',team:team.name,age:20,position:item.position,number,rating:Math.max(1,Math.min(100,team.rating||70)),lineupRole:item.role,photo:''}));
+ }
+ players.push(...newPlayers);team.startingLineup=newPlayers.map(p=>p.id);
+ return {team:team.name,count:newPlayers.length};
+}
 function strength(n){let a=clubPlayers(n).filter(p=>!p.stats.injury&&!p.stats.suspension).sort((x,y)=>y.rating-x.rating).slice(0,11);return a.length?a.reduce((s,p)=>s+(+p.rating||60),0)/a.length:(teams.find(t=>t.name===n)?.rating||65)}
-function standings(c){let r=c.teams.map(name=>({name,pj:0,g:0,e:0,p:0,gf:0,gc:0,pts:0})),m=Object.fromEntries(r.map(x=>[x.name,x]));matches.filter(x=>x.competition===c.name).forEach(x=>{let h=m[x.home],a=m[x.away];if(!h||!a)return;h.pj++;a.pj++;h.gf+=x.a;h.gc+=x.b;a.gf+=x.b;a.gc+=x.a;if(x.a>x.b){h.g++;h.pts+=3;a.p++}else if(x.a<x.b){a.g++;a.pts+=3;h.p++}else{h.e++;a.e++;h.pts++;a.pts++}});return r.sort((a,b)=>b.pts-a.pts||(b.gf-b.gc)-(a.gf-a.gc)||b.gf-a.gf)}
+function standings(c,groupName=null){
+ const group=c.groups?.find(g=>g.name===groupName);
+ const names=group?group.teams:c.teams;
+ const rows=names.map(name=>({name,pj:0,g:0,e:0,p:0,gf:0,gc:0,pts:0}));
+ const map=Object.fromEntries(rows.map(x=>[x.name,x]));
+ matches.filter(x=>x.competition===c.name&&(groupName?x.group===groupName:!x.group)).forEach(x=>{
+  const h=map[x.home],a=map[x.away];if(!h||!a)return;
+  h.pj++;a.pj++;h.gf+=x.a;h.gc+=x.b;a.gf+=x.b;a.gc+=x.a;
+  if(x.a>x.b){h.g++;h.pts+=3;a.p++}else if(x.a<x.b){a.g++;a.pts+=3;h.p++}else{h.e++;a.e++;h.pts++;a.pts++}
+ });
+ return rows.sort((a,b)=>b.pts-a.pts||(b.gf-b.gc)-(a.gf-a.gc)||b.gf-a.gf);
+}
 function schedule(c){let a=[...c.teams];if(a.length<2)return[];if(a.length%2)a.push(null);let n=a.length,rounds=n-1,half=n/2,fs=[],rot=[...a];for(let r=0;r<rounds;r++){for(let i=0;i<half;i++){let x=rot[i],y=rot[n-1-i];if(x&&y){let h=(r+i)%2===0?x:y;fs.push({id:uid(),round:r+1,home:h,away:h===x?y:x,status:'Pendiente'})}}rot=[rot[0],rot[n-1],...rot.slice(1,n-1)]}if(c.legs===2)fs.push(...fs.map(f=>({id:uid(),round:f.round+rounds,home:f.away,away:f.home,status:'Pendiente'})));return fs}
-function cupSchedule(c){let pool=[...c.teams].sort(()=>Math.random()-.5),fs=[],round=1;while(pool.length>1){let next=[];for(let i=0;i<pool.length;i+=2){if(!pool[i+1]){next.push(pool[i]);continue}fs.push({id:uid(),round,home:pool[i],away:pool[i+1],status:'Pendiente'});next.push('Ganador '+fs[fs.length-1].id)}pool=next;round++}return fs}
+function cupSchedule(c){
+ const pool=[...c.teams].sort(()=>Math.random()-.5),fixtures=[];
+ c.byes=[];if(pool.length%2)c.byes.push(pool.pop());
+ for(let i=0;i<pool.length;i+=2)fixtures.push({id:uid(),round:1,phase:'Eliminatorias',home:pool[i],away:pool[i+1],status:'Pendiente'});
+ c.currentRound=1;return fixtures;
+}
+function groupSchedule(c){
+ const count=Math.max(2,Math.ceil(c.teams.length/4));
+ const groups=Array.from({length:count},(_,i)=>({name:String.fromCharCode(65+i),teams:[]}));
+ [...c.teams].sort(()=>Math.random()-.5).forEach((name,i)=>groups[i%count].teams.push(name));
+ c.groups=groups;c.knockoutStarted=false;
+ return groups.flatMap(g=>schedule({teams:g.teams,legs:1}).map(f=>({...f,group:g.name,phase:'Grupos'})));
+}
+function progressCup(c){
+ const round=c.fixtures.filter(f=>f.phase==='Eliminatorias'&&f.round===c.currentRound);
+ if(!round.length||round.some(f=>f.status!=='Jugado'))return;
+ const winners=round.map(f=>f.scoreHome===f.scoreAway?(Math.random()<.5?f.home:f.away):(f.scoreHome>f.scoreAway?f.home:f.away));
+ const pool=[...winners,...(c.byes||[])];c.byes=[];
+ if(pool.length===1){
+  c.winner=pool[0];
+  if(!champions.some(x=>x.competition===c.name&&x.season===season))champions.push({competition:c.name,season,winner:pool[0]});
+  return;
+ }
+ if(pool.length%2)c.byes.push(pool.pop());
+ c.currentRound++;
+ for(let i=0;i<pool.length;i+=2)c.fixtures.push({id:uid(),round:c.currentRound,phase:'Eliminatorias',home:pool[i],away:pool[i+1],status:'Pendiente'});
+}
 function poisson(l){let z=Math.exp(-l),k=0,p=1;do{k++;p*=Math.random()}while(p>z&&k<8);return Math.min(7,k-1)}
 function pick(team,exclude=[]){let a=clubPlayers(team).filter(p=>!exclude.includes(p.id)&&!p.stats.injury&&!p.stats.suspension);if(!a.length)return null;let w=a.map(p=>({p,w:Math.max(1,p.rating*(1-p.stats.fatigue/180))})),sum=w.reduce((s,x)=>s+x.w,0),r=Math.random()*sum;for(let x of w){r-=x.w;if(r<=0)return x.p}return w[0].p}
 function finishMatchRecovery(used){players.forEach(p=>{if(used.has(p.id)){p.stats.fatigue=Math.min(100,p.stats.fatigue+24);p.stats.form=Math.max(20,Math.min(100,p.stats.form+(Math.random()*8-2)))}else{p.stats.fatigue=Math.max(0,p.stats.fatigue-15);if(p.stats.injury>0)p.stats.injury--;if(p.stats.suspension>0)p.stats.suspension--}})}
@@ -460,8 +563,8 @@ function copyFallback(text){
 function play(home,away,competition='',fixture=null){
  if(home===away)return toast('Elige dos clubes diferentes.');
 
- const hPlayers=clubPlayers(home).filter(p=>!p.stats.injury&&!p.stats.suspension).sort((a,b)=>b.rating-a.rating);
- const aPlayers=clubPlayers(away).filter(p=>!p.stats.injury&&!p.stats.suspension).sort((a,b)=>b.rating-a.rating);
+ const hPlayers=teamMatchPool(home);
+ const aPlayers=teamMatchPool(away);
 
  if(hPlayers.length<11||aPlayers.length<11)
   return toast('Cada equipo necesita 11 jugadores disponibles.');
@@ -544,13 +647,13 @@ if(settings.substitutions){
  for(const [club,num,line] of [[home,hg,hline],[away,ag,aline]]){
   for(let i=0;i<num;i++){
    let attackers=line.filter(p=>p.position!=='POR');
-   let scorer=attackers[Math.floor(Math.random()*attackers.length)];
-   if(!scorer)continue;
+   const positionFactor=p=>({DC:1.8,ED:1.5,EI:1.5,MCO:1.35,MC:1.05,MCD:.75,DFC:.55,LD:.6,LI:.6}[p.position]||1);
+   let scorer=weightedChoice(attackers,p=>roleWeight(p)*positionFactor(p));
 
    let assist=null;
    if(Math.random()<.72){
     let possible=line.filter(p=>p.id!==scorer.id&&p.position!=='POR');
-    assist=possible[Math.floor(Math.random()*possible.length)]||null;
+    assist=weightedChoice(possible,p=>roleWeight(p)*positionFactor(p))||null;
    }
 
    let minute=1+Math.floor(Math.random()*90);
@@ -749,6 +852,7 @@ for(const [club,line] of [[home,hline],[away,aline]]){
 
  let match={
   id:uid(),home,away,a:hg,b:ag,competition,
+  group:fixture?.group||null,phase:fixture?.phase||null,
   date:new Date().toLocaleString('es'),
   events,subs,
   playerStats:playerList,
@@ -762,17 +866,37 @@ for(const [club,line] of [[home,hline],[away,aline]]){
   fixture.scoreHome=hg;
   fixture.scoreAway=ag;
   fixture.matchId=match.id;
+  const cup=comps.find(c=>c.name===competition&&(c.format==='Copa'||c.knockoutStarted));
+  if(cup)progressCup(cup);
  }
 
  save();
  toast(`Final: ${home} ${hg} - ${ag} ${away}`);
 }
-function tableStand(c){let r=standings(c);return r.length?`<div class="tablewrap"><table><thead><tr><th>#</th><th>Club</th><th>PJ</th><th>G</th><th>E</th><th>P</th><th>GF</th><th>GC</th><th>DG</th><th>PTS</th></tr></thead><tbody>${r.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${x.pj}</td><td>${x.g}</td><td>${x.e}</td><td>${x.p}</td><td>${x.gf}</td><td>${x.gc}</td><td>${x.gf-x.gc}</td><td><b>${x.pts}</b></td></tr>`).join('')}</tbody></table></div>`:'<p class="empty">Inscribe al menos dos clubes.</p>'}
+function tableStand(c,groupName=null){let r=standings(c,groupName);return r.length?`<div class="tablewrap"><table><thead><tr><th>#</th><th>Club</th><th>PJ</th><th>G</th><th>E</th><th>P</th><th>GF</th><th>GC</th><th>DG</th><th>PTS</th></tr></thead><tbody>${r.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${x.pj}</td><td>${x.g}</td><td>${x.e}</td><td>${x.p}</td><td>${x.gf}</td><td>${x.gc}</td><td>${x.gf-x.gc}</td><td><b>${x.pts}</b></td></tr>`).join('')}</tbody></table></div>`:'<p class="empty">Inscribe al menos dos clubes.</p>'}
 function home(){shell('Centro de operaciones',`<section class="hero"><div class="eyebrow">SOCCER SIMULATOR 2026 · V2.1</div><h1>Tu fútbol.<br>Tus reglas.</h1><p>Gestiona clubes, jugadores, temporadas, lesiones, disciplina y competiciones.</p><div class="actions"><button data-go="teams">＋ Crear club</button><button class="secondary" data-go="players">Crear jugador</button><button class="secondary" data-go="comps">Crear competición</button></div></section><div class="grid"><div class="stat"><small>CLUBES</small><strong>${teams.length}</strong></div><div class="stat"><small>JUGADORES</small><strong>${players.length}</strong></div><div class="stat"><small>COMPETICIONES</small><strong>${comps.length}</strong></div><div class="stat"><small>PARTIDOS</small><strong>${matches.length}</strong></div></div><div class="card"><h2>Temporada ${season}</h2><p class="notice">Jugadores lesionados: ${players.filter(p=>p.stats.injury>0).length} · Suspendidos: ${players.filter(p=>p.stats.suspension>0).length}</p><button data-go="calendar">Ver calendario</button></div><div class="card"><h2>Últimos resultados</h2>${matches.length?matches.slice(-5).reverse().map(m=>`<div class="fixture"><span>${esc(m.home)}</span><b class="score">${m.a} - ${m.b}</b><span class="away">${esc(m.away)}</span></div>`).join(''):'<p class="empty">Aún no hay partidos.</p>'}</div>`)}
-function teamsPage(){shell('Clubes',`<div class="eyebrow">GESTIÓN DE CLUBES Y ESTADIOS</div><h1>Mis clubes</h1><div class="card"><h2>Crear club</h2><form id="teamForm"><div class="row"><div class="field"><label>Nombre</label><input name="name" required maxlength="40"></div><div class="field"><label>Valoración base</label><input name="rating" type="number" min="1" max="100" value="70"></div><div class="field"><label>Escudo</label><input name="crest" type="file" accept="image/*"></div><button>Guardar club</button></div></form></div><div class="card"><h2>Clubes (${teams.length})</h2>${teams.map((t,i)=>`<div class="teamrow">${crest(t)}<div style="flex:1"><b>${esc(t.name)}</b><div class="notice">División ${t.division} · ${clubPlayers(t.name).length} jugadores</div><small class="muted">${esc(t.stadium)} · ${t.capacity.toLocaleString()} espectadores</small></div><button class="secondary mini" data-stadium="${i}">Estadio</button><button class="danger mini" data-del-team="${i}">Eliminar</button></div>`).join('')||'<p class="empty">Crea tu primer club.</p>'}</div>`)}
+function teamsPage(){shell('Clubes',`<div class="eyebrow">GESTIÓN DE CLUBES Y ESTADIOS</div><h1>Mis clubes</h1><div class="card"><h2>Crear club</h2><form id="teamForm"><div class="row"><div class="field"><label>Nombre</label><input name="name" required maxlength="40"></div><div class="field"><label>Valoración base</label><input name="rating" type="number" min="1" max="100" value="70"></div><div class="field"><label>Escudo</label><input name="crest" type="file" accept="image/*"></div><button>Guardar club</button></div></form></div><div class="card"><h2>Importar varios clubes</h2><p class="notice">Un club por línea; el número entre paréntesis es su nivel.</p><textarea id="bulkClubs" rows="4" style="width:100%;background:#081724;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:10px" placeholder="FC Barcelona (99)&#10;Real Madrid (98)"></textarea><button id="importClubs" style="margin-top:10px">Importar clubes</button></div><div class="card"><h2>Importar club y plantilla completa</h2><p class="notice">Primera línea: club (nivel opcional). Luego: POSICIÓN: Nombre | usuario | rol. El rol puede quedar vacío.</p><textarea id="bulkSquad" rows="9" style="width:100%;background:#081724;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:10px" placeholder="FC Barcelona (99)&#10;POR: Ejemplo | juan.34 | principal&#10;DFC: Rodrigo Silva | ericg.2 | secundario"></textarea><button id="importSquad" style="margin-top:10px">Importar club y jugadores</button></div><div class="card"><h2>Clubes (${teams.length})</h2>${teams.map((t,i)=>`<div class="teamrow">${crest(t)}<div style="flex:1"><b>${esc(t.name)}</b><div class="notice">División ${t.division} · ${clubPlayers(t.name).length} jugadores</div><small class="muted">${esc(t.stadium)} · ${t.capacity.toLocaleString()} espectadores</small></div><button class="secondary mini" data-stadium="${i}">Estadio</button><button class="danger mini" data-del-team="${i}">Eliminar</button></div>`).join('')||'<p class="empty">Crea tu primer club.</p>'}</div>`)}
 function playersPage(){let rows=players.map(p=>`<tr><td>${avatar(p)} ${esc(p.name)}</td><td>${esc(p.team)}</td><td>${p.position}</td><td>${p.rating}</td><td>${p.stats.goals}</td><td>${p.stats.assists}</td><td>${p.stats.fatigue}%</td><td>${p.stats.injury?'Lesionado ('+p.stats.injury+')':'Disponible'}</td><td>${p.stats.suspension?'Suspendido ('+p.stats.suspension+')':'—'}</td><td>${p.stats.yellow}</td><td>${p.stats.cleanSheets}</td><td><button class="danger mini" data-del-player="${p.id}">Quitar</button></td></tr>`).join('');shell('Jugadores',`<div class="eyebrow">PLANTILLAS, ESTADO FÍSICO Y DISCIPLINA</div><h1>Jugadores</h1><div class="card"><h2>Registrar futbolista</h2>${teams.length?`<form id="playerForm"><div class="row"><div class="field"><label>Nombre</label><input name="name" required maxlength="48"></div><div class="field"><label>País</label><input name="country"></div><div class="field"><label>Club</label><select name="team">${teams.map(t=>`<option>${esc(t.name)}</option>`).join('')}</select></div><div class="field"><label>Fotografía</label><input name="photo" type="file" accept="image/*"></div></div><div class="row"><div class="field"><label>Edad</label><input name="age" type="number" min="15" max="50" value="20"></div><div class="field"><label>Posición</label><select name="position">${['POR','DFC','LI','LD','MCD','MC','MCO','EI','ED','DC'].map(x=>`<option>${x}</option>`).join('')}</select></div><div class="field"><label>Dorsal</label><input name="number" type="number" min="1" max="99" value="10"></div><div class="field"><label>Media</label><input name="rating" type="number" min="1" max="100" value="75"></div><button>Guardar jugador</button></div></form>`:'<p class="empty">Primero crea un club.</p>'}</div><div class="card"><h2>Plantillas y estado de jugadores</h2><div class="tablewrap"><table><thead><tr><th>Jugador</th><th>Club</th><th>Pos.</th><th>Media</th><th>G</th><th>A</th><th>Fatiga</th><th>Lesión</th><th>Sanción</th><th>Amarillas</th><th>Porterías a cero</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>`)}
-function compsPage(){shell('Competiciones',`<div class="eyebrow">LIGAS Y COPAS</div><h1>Competiciones</h1><div class="card"><h2>Nueva competición</h2><form id="compForm"><div class="row"><div class="field"><label>Nombre</label><input name="name" required></div><div class="field"><label>Formato</label><select name="format"><option>Liga</option><option>Copa</option></select></div><div class="field"><label>Calendario de liga</label><select name="legs"><option value="1">Una vuelta</option><option value="2">Ida y vuelta</option></select></div><button>Crear</button></div></form></div>${comps.map((c,i)=>`<div class="card"><div class="subhead"><h2>${esc(c.name)}</h2><button class="danger mini" data-del-comp="${i}">Eliminar</button></div><p class="notice">${c.format} · ${c.teams.length} clubes · ${c.fixtures.length} partidos</p><form class="enroll" data-ci="${i}"><div class="row"><div class="field"><label>Inscribir club</label><select name="team">${teams.filter(t=>!c.teams.includes(t.name)).map(t=>`<option>${esc(t.name)}</option>`).join('')}</select></div><button ${!teams.some(t=>!c.teams.includes(t.name))||c.fixtures.length?'disabled':''}>Inscribir</button></div></form><div class="actions"><button class="secondary" data-gen="${i}" ${c.teams.length<2||c.fixtures.length?'disabled':''}>Generar ${c.format==='Copa'?'eliminatorias':'calendario'}</button>${c.format==='Liga'?`<button data-close-season="${i}">Cerrar liga y premiar campeón</button>`:''}</div>${c.format==='Liga'?`<h3>Clasificación</h3>${tableStand(c)}`:''}<p class="notice">Inscritos: ${c.teams.map(esc).join(' · ')||'ninguno'}</p></div>`).join('')||'<p class="empty">Todavía no hay competiciones.</p>'}`)}
-function calendarPage(){shell('Calendario',`<div class="eyebrow">PARTIDOS Y JORNADAS</div><h1>Calendario</h1>${comps.map((c,i)=>`<div class="card"><h2>${esc(c.name)}</h2>${c.fixtures.map(f=>`<div class="fixture"><span>J${f.round} · ${esc(f.home)}</span><b class="score">${f.status==='Jugado'?`${f.scoreHome} - ${f.scoreAway}`:'VS'}</b><span class="away">${esc(f.away)}</span>${f.status==='Jugado'?'<span class="pill">Jugado</span>':`<button class="mini" data-play="${i}|${f.id}">Simular</button>`}</div>`).join('')||'<p class="empty">Genera el calendario en Competiciones.</p>'}</div>`).join('')||'<p class="empty">Crea una competición.</p>'}`)}
+function compsPage(){
+ shell('Competiciones',`
+ <div class="eyebrow">LIGAS, COPAS Y FASES DE GRUPOS</div><h1>Competiciones</h1>
+ <div class="card"><h2>Nueva competición</h2><form id="compForm"><div class="row">
+  <div class="field"><label>Nombre</label><input name="name" required></div>
+  <div class="field"><label>Formato</label><select name="format"><option>Liga</option><option>Copa</option><option>Grupos + eliminatorias</option></select></div>
+  <div class="field"><label>Calendario de liga</label><select name="legs"><option value="1">Una vuelta</option><option value="2">Ida y vuelta</option></select></div><button>Crear</button>
+ </div></form></div>
+ ${comps.map((c,i)=>`
+ <div class="card"><div class="subhead"><h2>${esc(c.name)}</h2><button class="danger mini" data-del-comp="${i}">Eliminar</button></div>
+ <p class="notice">${esc(c.format)} · ${c.teams.length} clubes · ${c.fixtures.length} partidos</p>
+ <form class="enroll" data-ci="${i}"><div class="row"><div class="field"><label>Inscribir club</label><select name="team">${teams.filter(t=>!c.teams.includes(t.name)).map(t=>`<option>${esc(t.name)}</option>`).join('')}</select></div><button ${!teams.some(t=>!c.teams.includes(t.name))||c.fixtures.length?'disabled':''}>Inscribir</button></div></form>
+ <div class="actions"><button class="secondary" data-gen="${i}" ${c.teams.length<2||c.fixtures.length?'disabled':''}>Generar ${c.format==='Copa'?'primera ronda':c.format==='Grupos + eliminatorias'?'fase de grupos':'calendario'}</button>${c.format==='Liga'?'<button data-close-season="'+i+'">Cerrar liga y premiar campeón</button>':''}</div>
+ ${c.format==='Liga'?'<h3>Clasificación</h3>'+tableStand(c):''}
+ ${c.format==='Grupos + eliminatorias'?(c.groups||[]).map(g=>'<h3>Grupo '+esc(g.name)+'</h3>'+tableStand(c,g.name)).join('')+(c.groups?.length?'<button class="secondary" data-knockout="'+i+'" '+(c.knockoutStarted||c.fixtures.filter(f=>f.phase==='Grupos').some(f=>f.status!=='Jugado')?'disabled':'')+'>Clasificar primeros y segundos a eliminatorias</button>':''):''}
+ ${c.winner?'<p class="pill">Campeón: '+esc(c.winner)+'</p>':''}
+ <p class="notice">Inscritos: ${c.teams.map(esc).join(' · ')||'ninguno'}</p></div>`).join('')||'<p class="empty">Todavía no hay competiciones.</p>'}
+ `);
+}
+function calendarPage(){shell('Calendario',`<div class="eyebrow">PARTIDOS Y JORNADAS</div><h1>Calendario</h1>${comps.map((c,i)=>`<div class="card"><h2>${esc(c.name)}</h2>${c.fixtures.map(f=>`<div class="fixture"><span>${f.group?'Grupo '+esc(f.group)+' · ':''}J${f.round} · ${esc(f.home)}</span><b class="score">${f.status==='Jugado'?`${f.scoreHome} - ${f.scoreAway}`:'VS'}</b><span class="away">${esc(f.away)}</span>${f.status==='Jugado'?'<span class="pill">Jugado</span>':`<button class="mini" data-play="${i}|${f.id}">Simular</button>`}</div>`).join('')||'<p class="empty">Genera el calendario en Competiciones.</p>'}</div>`).join('')||'<p class="empty">Crea una competición.</p>'}`)}
 
 function matchesPage(){
  const last=matches[matches.length-1];
@@ -1029,9 +1153,10 @@ function lineupPage(){
   selectedTeam=teams[0]?.name||'';
 
  let t=teams.find(x=>x.name===selectedTeam);
- let squad=t?clubPlayers(t.name).filter(p=>!p.stats.injury&&!p.stats.suspension).sort((a,b)=>b.rating-a.rating):[];
- let eleven=squad.slice(0,11);
- let bench=squad.slice(11);
+ let squad=t?clubPlayers(t.name).filter(p=>!p.stats.injury&&!p.stats.suspension):[];
+ let ordered=t?teamMatchPool(t.name):[];
+ let eleven=ordered.slice(0,11);
+ let bench=ordered.slice(11);
 
  shell('Alineaciones',`
  <div class="eyebrow">CENTRO TÁCTICO</div>
@@ -1060,7 +1185,7 @@ function lineupPage(){
     ${avatar(p)}
     <div style="flex:1">
      <b>${esc(p.name)}</b>
-     <div class="notice">${esc(p.position)} · ${p.number?'#'+p.number:''}</div>
+     <div class="notice">${esc(p.position)} · ${p.number?'#'+p.number:''} · ${p.lineupRole?esc(p.lineupRole):'Sin clasificación'}</div>
     </div>
     <b>${p.rating}</b>
    </div>`).join('')||'<p class="empty">No hay jugadores disponibles.</p>'}
@@ -1070,7 +1195,7 @@ function lineupPage(){
   ${bench.map(p=>`
    <div class="teamrow">
     ${avatar(p)}
-    <span style="flex:1">${esc(p.name)} <small class="muted">(${esc(p.position)})</small></span>
+    <span style="flex:1">${esc(p.name)} <small class="muted">(${esc(p.position)} · ${p.lineupRole?esc(p.lineupRole):'Sin clasificación'})</small></span>
     <b>${p.rating}</b>
    </div>`).join('')||'<p class="empty">No hay suplentes disponibles.</p>'}
  </div>
@@ -1197,12 +1322,16 @@ document.addEventListener('click',e=>{
  let dt=e.target.closest('[data-del-team]');if(dt&&confirm('¿Eliminar este club y sus jugadores?')){let t=teams[+dt.dataset.delTeam];players=players.filter(x=>x.team!==t.name);teams.splice(+dt.dataset.delTeam,1);save()}
  let dp=e.target.closest('[data-del-player]');if(dp){players=players.filter(x=>x.id!==dp.dataset.delPlayer);save()}
  let dc=e.target.closest('[data-del-comp]');if(dc&&confirm('¿Eliminar competición?')){comps.splice(+dc.dataset.delComp,1);save()}
- let gn=e.target.closest('[data-gen]');if(gn){let c=comps[+gn.dataset.gen];c.fixtures=c.format==='Copa'?cupSchedule(c):schedule(c);save();toast('Calendario generado.')}
+ let gn=e.target.closest('[data-gen]');if(gn){let c=comps[+gn.dataset.gen];c.fixtures=c.format==='Copa'?cupSchedule(c):c.format==='Grupos + eliminatorias'?groupSchedule(c):schedule(c);save();toast(c.format==='Grupos + eliminatorias'?'Grupos sorteados.':'Calendario generado.')}
+ let ko=e.target.closest('[data-knockout]');if(ko){const c=comps[+ko.dataset.knockout];if(!c||c.knockoutStarted)return;const qualifiers=(c.groups||[]).map(g=>standings(c,g.name).slice(0,2).map(x=>x.name));if(qualifiers.some(q=>q.length<2))return toast('Cada grupo necesita dos clasificados.');const pool=[];for(let i=0;i<qualifiers.length;i++){const next=qualifiers[(i+1)%qualifiers.length];pool.push(qualifiers[i][0],next[1]);}c.knockoutStarted=true;c.currentRound=1;for(let i=0;i<pool.length;i+=2)c.fixtures.push({id:uid(),round:1,phase:'Eliminatorias',home:pool[i],away:pool[i+1],status:'Pendiente'});save();toast('Eliminatorias generadas.')}
+
  let pl=e.target.closest('[data-play]');if(pl){let [ci,id]=pl.dataset.play.split('|'),f=comps[+ci].fixtures.find(x=>x.id===id);if(f&&f.status!=='Jugado')play(f.home,f.away,comps[+ci].name,f)}
  let st=e.target.closest('[data-stadium]');if(st){let t=teams[+st.dataset.stadium],name=prompt('Nombre del estadio:',t.stadium);if(name===null)return;let cap=prompt('Capacidad:',t.capacity);if(cap===null)return;t.stadium=name.trim()||'Estadio Municipal';t.capacity=Math.max(0,+cap||0);save()}
  let cl=e.target.closest('[data-close-season]');if(cl)closeLeague(+cl.dataset.closeSeason);
  if(e.target.id==='advance')advanceSeason();
-if(e.target.id==='export'){
+if(e.target.id==='importClubs'){try{importClubLines(document.getElementById('bulkClubs').value);save();toast('Clubes importados.')}catch(err){toast(err.message||'Error al importar clubes.')}} 
+ if(e.target.id==='importSquad'){try{const result=importSquadBlock(document.getElementById('bulkSquad').value);save();toast(result.count+' jugadores importados en '+result.team+'.')}catch(err){toast(err.message||'Error al importar plantilla.')}} 
+ if(e.target.id==='export'){
  let data={
   version:'2.1',
   season,teams,players,comps,matches,champions,awards,settings
@@ -1217,7 +1346,7 @@ if(e.target.id==='export'){
 });
 document.addEventListener('submit',async e=>{
  let f=e.target;
- if(f.id==='teamForm'){e.preventDefault();let d=new FormData(f),name=d.get('name').trim();if(teams.some(t=>t.name.toLowerCase()===name.toLowerCase()))return toast('Ese club ya existe.');let crest=await fileData(d.get('crest'));teams.push({id:uid(),name,rating:+d.get('rating'),crest,stadium:'Estadio Municipal',capacity:25000,division:1});save();toast('Club creado.')}
+ if(f.id==='teamForm'){e.preventDefault();let d=new FormData(f),name=d.get('name').trim();if(teams.some(t=>t.name.toLowerCase()===name.toLowerCase()))return toast('Ese club ya existe.');let crest=await fileData(d.get('crest'));teams.push({id:uid(),name,rating:+d.get('rating'),crest,stadium:'Estadio Municipal',capacity:25000,division:1,startingLineup:[]});save();toast('Club creado.')}
  if(f.id==='playerForm'){e.preventDefault();let d=new FormData(f),name=d.get('name').trim(),team=d.get('team'),number=+d.get('number');if(players.some(p=>p.team===team&&p.number===number))return toast('Dorsal ocupado.');let photo=await fileData(d.get('photo'));players.push(initPlayer({id:uid(),name,country:d.get('country'),team,age:+d.get('age'),position:d.get('position'),number,rating:+d.get('rating'),photo}));save();toast('Jugador registrado.')}
  if(f.id==='compForm'){e.preventDefault();let d=new FormData(f),name=d.get('name').trim();if(comps.some(c=>c.name.toLowerCase()===name.toLowerCase()))return toast('Esa competición ya existe.');comps.push({id:uid(),name,format:d.get('format'),legs:+d.get('legs'),teams:[],fixtures:[]});save()}
  if(f.classList.contains('enroll')){e.preventDefault();let c=comps[+f.dataset.ci],team=new FormData(f).get('team');if(team&&!c.teams.includes(team)){c.teams.push(team);save()}}
