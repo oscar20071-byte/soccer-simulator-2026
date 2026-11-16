@@ -301,11 +301,11 @@ function avatar(p){return p.photo?`<img class="avatar" src="${p.photo}">`:'<span
 function clubPlayers(n){return players.filter(p=>p.team===n)}
 function normalizeRole(value){
  const raw=String(value||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'');
- const aliases={principal:'principal',secundario:'secundario',terciario:'terciario',cuaternario:'cuaternario',cuarto:'cuaternario',quinto:'quintario',quintario:'quintario',sexto:'sextario',sextario:'sextario',septimo:'septenario',septenario:'septenario',octavo:'octavario',octavario:'octavario',noveno:'novenario',novenario:'novenario',decimo:'decenario',decenario:'decenario'};
+ const aliases={principal:'principal',secundario:'secundario',terciario:'terciario',cuaternario:'cuaternario',cuaternairo:'cuaternario',cuarto:'cuaternario',quinto:'quintario',quintario:'quintario',sexto:'sextario',sextario:'sextario',septimo:'septenario',septenario:'septenario',octavo:'octavario',octavario:'octavario',noveno:'novenario',novenario:'novenario',decimo:'decenario',decenario:'decenario',undecimo:'undecenario',undecenario:'undecenario',duodecimo:'duodecenario',duodecenario:'duodecenario',decimotercero:'terciodecenario',terciodecenario:'terciodecenario',decimocuarto:'cuartodecenario',cuartodecenario:'cuartodecenario',decimoquinto:'quintodecenario',quintodecenario:'quintodecenario'};
  return aliases[raw]||'';
 }
 function roleWeight(p){
- const weights={principal:4.2,secundario:2.8,terciario:1.9,cuaternario:1.35,quintario:1.2,sextario:1.1,septenario:1.05,octavario:1.02,novenario:1.01,decenario:1};
+ const weights={principal:4.2,secundario:2.8,terciario:1.9,cuaternario:1.35,quintario:1.2,sextario:1.1,septenario:1.05,octavario:1.02,novenario:1.01,decenario:1,undecenario:.99,duodecenario:.98,terciodecenario:.97,cuartodecenario:.96,quintodecenario:.95};
  return weights[p.lineupRole]||1;
 }
 function weightedChoice(list,weightFn){
@@ -351,6 +351,8 @@ function importSquadBlock(raw){
   entries.push({position,name,username,role});
  }
  let team=teams.find(t=>t.name.toLowerCase()===header.name.toLowerCase());
+ const existing=clubPlayers(header.name);
+ for(const item of entries){if(players.some(p=>p.team===header.name&&(String(p.username||'').toLowerCase()===item.username.toLowerCase()||p.name.toLowerCase()===item.name.toLowerCase())))throw new Error('Jugador duplicado: '+item.name)}
  if(!team){team={id:uid(),name:header.name,rating:header.rating,crest:'',stadium:'Estadio Municipal',capacity:25000,division:1,startingLineup:[]};teams.push(team)}
  else if(lines[0].includes('('))team.rating=header.rating;
  const used=new Set(clubPlayers(team.name).map(p=>Number(p.number))),newPlayers=[];
@@ -894,7 +896,7 @@ function compsPage(){
  <p class="notice">Inscritos: ${c.teams.map(esc).join(' · ')||'ninguno'}</p></div>`).join('')||'<p class="empty">Todavía no hay competiciones.</p>'}
  `);
 }
-function calendarPage(){shell('Calendario',`<div class="eyebrow">PARTIDOS Y JORNADAS</div><h1>Calendario</h1>${comps.map((c,i)=>`<div class="card"><h2>${esc(c.name)}</h2>${c.fixtures.map(f=>`<div class="fixture"><span>J${f.round} · ${esc(f.home)}</span><b class="score">${f.status==='Jugado'?`${f.scoreHome} - ${f.scoreAway}`:'VS'}</b><span class="away">${esc(f.away)}</span>${f.status==='Jugado'?'<span class="pill">Jugado</span>':`<button class="mini" data-play="${i}|${f.id}">Simular</button>`}</div>`).join('')||'<p class="empty">Genera el calendario en Competiciones.</p>'}</div>`).join('')||'<p class="empty">Crea una competición.</p>'}`)}
+function calendarPage(){shell('Calendario',`<div class="eyebrow">PARTIDOS Y JORNADAS</div><h1>Calendario</h1>${comps.map((c,i)=>`<div class="card"><h2>${esc(c.name)}</h2>${c.fixtures.map(f=>`<div class="fixture"><span>${f.group?'Grupo '+esc(f.group)+' · ':''}J${f.round} · ${esc(f.home)}</span><b class="score">${f.status==='Jugado'?`${f.scoreHome} - ${f.scoreAway}`:'VS'}</b><span class="away">${esc(f.away)}</span>${f.status==='Jugado'?'<span class="pill">Jugado</span>':`<button class="mini" data-play="${i}|${f.id}">Simular</button>`}</div>`).join('')||'<p class="empty">Genera el calendario en Competiciones.</p>'}</div>`).join('')||'<p class="empty">Crea una competición.</p>'}`)}
 
 function matchesPage(){
  const last=matches[matches.length-1];
