@@ -1129,7 +1129,7 @@ function lineupPage(){
     ${avatar(p)}
     <div style="flex:1">
      <b>${esc(p.name)}</b>
-     <div class="notice">${esc(p.position)} · ${p.number?'#'+p.number:'' } · ${p.lineupRole?esc(p.lineupRole):'Sin clasificación'}</div>
+     <div class="notice">${esc(p.position)} · ${p.number?'#'+p.number:'' } · ${p.lineupRole?esc(p.lineupRole):'sin clasificación'}</div>
     </div>
     <b>${p.rating}</b>
    </div>`).join('')||'<p class="empty">No hay jugadores disponibles.</p>'}
@@ -1139,7 +1139,7 @@ function lineupPage(){
   ${bench.map(p=>`
    <div class="teamrow">
     ${avatar(p)}
-    <span style="flex:1">${esc(p.name)} <small class="muted">(${esc(p.position)} · ${p.lineupRole?esc(p.lineupRole):'Sin clasificación'})</small></span>
+    <span style="flex:1">${esc(p.name)} <small class="muted">(${esc(p.position)} · ${p.lineupRole?esc(p.lineupRole):'sin clasificación'})</small></span>
     <b>${p.rating}</b>
    </div>`).join('')||'<p class="empty">No hay suplentes disponibles.</p>'}
  </div>
