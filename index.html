@@ -348,11 +348,16 @@ function importSquadBlock(raw){
   const position=m[1].toUpperCase(),rawName=m[2].trim(),username=m[3].trim(),role=normalizeRole(m[4]||'');
   if(!positions.includes(position))throw new Error('Posición no reconocida: '+position);
   const shirtMatch=rawName.match(/^(.*?)\s*#\s*(\d+)$/);
-  const name=(shirtMatch?shirtMatch[1]:rawName).trim();
+  const withoutNumber=(shirtMatch?shirtMatch[1]:rawName).trim();
+  const ratingMatch=withoutNumber.match(/^(.*?)\s*\(\s*(\d{1,3})\s*\)$/);
+  const name=(ratingMatch?ratingMatch[1]:withoutNumber).trim();
+  const rating=ratingMatch?Number(ratingMatch[2]):null;
   const number=shirtMatch?Number(shirtMatch[2]):null;
   if(!name||!username)throw new Error('Falta nombre o usuario: '+line);
+  if(rating===null)throw new Error('Falta la media obligatoria (1–100) de '+name+'. Usa Nombre (85) #11.');
+  if(!Number.isInteger(rating)||rating<1||rating>100)throw new Error('La media debe estar entre 1 y 100: '+line);
   if(number!==null&&(!Number.isInteger(number)||number<1||number>99))throw new Error('El dorsal debe estar entre 1 y 99: '+line);
-  entries.push({position,name,username,role,number});
+  entries.push({position,name,username,role,number,rating});
  }
  let team=teams.find(t=>t.name.toLowerCase()===header.name.toLowerCase());
  const newNames=new Set(),newUsers=new Set();
@@ -372,7 +377,7 @@ function importSquadBlock(raw){
  for(const item of entries){
   let number=item.number;
   if(number===null){number=1;while(used.has(number)&&number<=99)number++;if(number>99)throw new Error('No quedan dorsales libres.');used.add(number)}
-  newPlayers.push(initPlayer({id:uid(),name:item.name,username:item.username,country:'',team:team.name,age:20,position:item.position,number,rating:Math.max(1,Math.min(100,team.rating||70)),lineupRole:item.role,photo:''}));
+  newPlayers.push(initPlayer({id:uid(),name:item.name,username:item.username,country:'',team:team.name,age:20,position:item.position,number,rating:item.rating,lineupRole:item.role,photo:''}));
  }
  players.push(...newPlayers);team.startingLineup=[...(team.startingLineup||[]),...newPlayers.map(p=>p.id)];
  return {team:team.name,count:newPlayers.length};
@@ -623,13 +628,13 @@ if(settings.substitutions){
   for(let i=0;i<num;i++){
    let attackers=line.filter(p=>p.position!=='POR');
    const positionFactor=p=>({DC:1.8,ED:1.5,EI:1.5,MCO:1.35,MC:1.05,MCD:.75,DFC:.55,LD:.6,LI:.6}[p.position]||1);
-   let scorer=weightedChoice(attackers,p=>roleWeight(p)*positionFactor(p));
+   let scorer=weightedChoice(attackers,p=>roleWeight(p)*positionFactor(p)*(.5+(p.rating||50)/100));
    if(!scorer)continue;
 
    let assist=null;
    if(Math.random()<.72){
     let possible=line.filter(p=>p.id!==scorer.id&&p.position!=='POR');
-    assist=weightedChoice(possible,p=>roleWeight(p)*positionFactor(p))||null;
+    assist=weightedChoice(possible,p=>roleWeight(p)*positionFactor(p)*(.5+(p.rating||50)/100))||null;
    }
 
    let minute=1+Math.floor(Math.random()*90);
@@ -675,18 +680,23 @@ if(settings.substitutions){
  for(const [club,line] of [[home,hline],[away,aline]]){
 if(settings.actions){
   for(let i=0;i<16;i++){
-   let p=line[Math.floor(Math.random()*line.length)];
+   let action=actions[Math.floor(Math.random()*actions.length)];
+   const actionPositionFactor=p=>{
+    if(action.includes('pase')||action.includes('regate')||action.includes('centro')||action.includes('disparo')||action.includes('ocasión'))return ({DC:1.5,ED:1.35,EI:1.35,MCO:1.3,MC:1.1,MCD:.9,DFC:.75,LD:.8,LI:.8,POR:.25}[p.position]||1);
+    if(action.includes('recupera')||action.includes('intercepta')||action.includes('despeja')||action.includes('duelo')||action.includes('entrada'))return ({POR:.5,DFC:1.4,LD:1.25,LI:1.25,MCD:1.3,MC:1.05,MCO:.8,ED:.75,EI:.75,DC:.65}[p.position]||1);
+    return 1;
+   };
+   let p=weightedChoice(line,x=>actionPositionFactor(x)*(.5+(x.rating||50)/100));
    if(!p)continue;
 
    let stat=performance[p.id];
-   let action=actions[Math.floor(Math.random()*actions.length)];
    let minute=1+Math.floor(Math.random()*90);
 
    if(settings.individualStats){
  if(action.includes('pase')){
     stat.passes++;
     p.stats.passes++;
-    if(Math.random()<.85){
+    if(Math.random()<Math.min(.98,.55+(p.rating||50)*.003)){
      stat.passesCompleted++;
      p.stats.passesCompleted++;
     }
@@ -694,7 +704,7 @@ if(settings.actions){
    if(action.includes('regate')){
     stat.dribbles++;
     p.stats.dribbles++;
-    if(Math.random()<.65){
+    if(Math.random()<Math.min(.95,.35+(p.rating||50)*.004)){
      stat.dribblesCompleted++;
      p.stats.dribblesCompleted++;
     }
@@ -714,7 +724,7 @@ if(settings.actions){
    if(action.includes('disparo')){
     stat.shots++;
     p.stats.shots++;
-    if(Math.random()<.5){
+    if(Math.random()<Math.min(.9,.25+(p.rating||50)*.004)){
      stat.shotsOnTarget++;
      p.stats.shotsOnTarget++;
     }
@@ -848,8 +858,8 @@ for(const [club,line] of [[home,hline],[away,aline]]){
 }
 function tableStand(c){let r=standings(c);return r.length?`<div class="tablewrap"><table><thead><tr><th>#</th><th>Club</th><th>PJ</th><th>G</th><th>E</th><th>P</th><th>GF</th><th>GC</th><th>DG</th><th>PTS</th></tr></thead><tbody>${r.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${x.pj}</td><td>${x.g}</td><td>${x.e}</td><td>${x.p}</td><td>${x.gf}</td><td>${x.gc}</td><td>${x.gf-x.gc}</td><td><b>${x.pts}</b></td></tr>`).join('')}</tbody></table></div>`:'<p class="empty">Inscribe al menos dos clubes.</p>'}
 function home(){shell('Centro de operaciones',`<section class="hero"><div class="eyebrow">SOCCER SIMULATOR 2026 · V2.1</div><h1>Tu fútbol.<br>Tus reglas.</h1><p>Gestiona clubes, jugadores, temporadas, lesiones, disciplina y competiciones.</p><div class="actions"><button data-go="teams">＋ Crear clubes</button><button class="secondary" data-go="players">Crear jugador</button><button class="secondary" data-go="comps">Crear competición</button></div></section><div class="grid"><div class="stat"><small>CLUBES</small><strong>${teams.length}</strong></div><div class="stat"><small>JUGADORES</small><strong>${players.length}</strong></div><div class="stat"><small>COMPETICIONES</small><strong>${comps.length}</strong></div><div class="stat"><small>PARTIDOS</small><strong>${matches.length}</strong></div></div><div class="card"><h2>Temporada ${season}</h2><p class="notice">Jugadores lesionados: ${players.filter(p=>p.stats.injury>0).length} · Suspendidos: ${players.filter(p=>p.stats.suspension>0).length}</p><button data-go="calendar">Ver calendario</button></div><div class="card"><h2>Últimos resultados</h2>${matches.length?matches.slice(-5).reverse().map(m=>`<div class="fixture"><span>${esc(m.home)}</span><b class="score">${m.a} - ${m.b}</b><span class="away">${esc(m.away)}</span></div>`).join(''):'<p class="empty">Aún no hay partidos.</p>'}</div>`)}
-function teamsPage(){shell('Clubes',`<div class="eyebrow">GESTIÓN DE CLUBES Y ESTADIOS</div><h1>Mis clubes</h1><div class="card"><h2>Crear clubes mediante importación</h2><p class="notice">Escribe uno o varios clubes, uno por línea. El número entre paréntesis es su nivel (1–100).</p><textarea id="bulkClubs" rows="4" style="width:100%;background:#081724;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:10px" placeholder="FC Barcelona (99)&#10;Real Madrid (98)"></textarea><button id="importClubs" style="margin-top:10px">Crear clubes</button></div><div class="card"><h2>Importar equipo y plantilla completa</h2><p class="notice">Primera línea: club o selección. Después: POSICIÓN: Nombre #dorsal | usuario | rol. El dorsal es opcional (1–99); si lo omites, se asigna automáticamente. El rol también puede quedar vacío.</p><textarea id="bulkSquad" rows="9" style="width:100%;background:#081724;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:10px" placeholder="FC Barcelona (99)&#10;POR: RPH #11 | @ejemplo | Principal&#10;DFC: Rodrigo Silva #4 | @ericg.2 | Secundario"></textarea><button id="importSquad" style="margin-top:10px">Importar equipo y jugadores</button></div><div class="card"><h2>Clubes (${teams.length})</h2>${teams.map((t,i)=>`<div class="teamrow">${crest(t)}<div style="flex:1"><b>${esc(t.name)}</b><div class="notice">División ${t.division} · ${clubPlayers(t.name).length} jugadores</div><small class="muted">${esc(t.stadium)} · ${t.capacity.toLocaleString()} espectadores</small></div><button class="secondary mini" data-stadium="${i}">Estadio</button><button class="danger mini" data-del-team="${i}">Eliminar</button></div>`).join('')||'<p class="empty">Todavía no hay clubes. Usa el formulario de creación para añadirlos.</p>'}</div>`)}
-function playersPage(){let rows=players.map(p=>`<tr><td>${avatar(p)} ${esc(p.name)}</td><td>${esc(p.team)}</td><td>${p.position}</td><td>${p.rating}</td><td>${p.stats.goals}</td><td>${p.stats.assists}</td><td>${p.stats.fatigue}%</td><td>${p.stats.injury?'Lesionado ('+p.stats.injury+')':'Disponible'}</td><td>${p.stats.suspension?'Suspendido ('+p.stats.suspension+')':'—'}</td><td>${p.stats.yellow}</td><td>${p.stats.cleanSheets}</td><td><button class="danger mini" data-del-player="${p.id}">Quitar</button></td></tr>`).join('');shell('Jugadores',`<div class="eyebrow">PLANTILLAS, ESTADO FÍSICO Y DISCIPLINA</div><h1>Jugadores</h1><div class="card"><h2>Registrar futbolista</h2>${teams.length?`<form id="playerForm"><div class="row"><div class="field"><label>Nombre</label><input name="name" required maxlength="48"></div><div class="field"><label>País</label><input name="country"></div><div class="field"><label>Club</label><select name="team">${teams.map(t=>`<option>${esc(t.name)}</option>`).join('')}</select></div><div class="field"><label>Fotografía</label><input name="photo" type="file" accept="image/*"></div></div><div class="row"><div class="field"><label>Edad</label><input name="age" type="number" min="15" max="50" value="20"></div><div class="field"><label>Posición</label><select name="position">${['POR','DFC','LI','LD','MCD','MC','MCO','EI','ED','DC'].map(x=>`<option>${x}</option>`).join('')}</select></div><div class="field"><label>Dorsal</label><input name="number" type="number" min="1" max="99" value="10"></div><div class="field"><label>Media</label><input name="rating" type="number" min="1" max="100" value="75"></div><button>Guardar jugador</button></div></form>`:'<p class="empty">Primero crea un club.</p>'}</div><div class="card"><h2>Plantillas y estado de jugadores</h2><div class="tablewrap"><table><thead><tr><th>Jugador</th><th>Club</th><th>Pos.</th><th>Media</th><th>G</th><th>A</th><th>Fatiga</th><th>Lesión</th><th>Sanción</th><th>Amarillas</th><th>Porterías a cero</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>`)}
+function teamsPage(){shell('Clubes',`<div class="eyebrow">GESTIÓN DE CLUBES Y ESTADIOS</div><h1>Mis clubes</h1><div class="card"><h2>Crear clubes mediante importación</h2><p class="notice">Escribe uno o varios clubes, uno por línea. El número entre paréntesis es su nivel (1–100).</p><textarea id="bulkClubs" rows="4" style="width:100%;background:#081724;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:10px" placeholder="FC Barcelona (99)&#10;Real Madrid (98)"></textarea><button id="importClubs" style="margin-top:10px">Crear clubes</button></div><div class="card"><h2>Importar equipo y plantilla completa</h2><p class="notice">Primera línea: club o selección. Después: POSICIÓN: Nombre (media) #dorsal | usuario | rol. La media es obligatoria (1–100) e influye en el rendimiento durante los partidos; puedes editarla después. El dorsal es opcional (1–99) y se asigna automáticamente si lo omites. El rol también puede quedar vacío.</p><textarea id="bulkSquad" rows="9" style="width:100%;background:#081724;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:10px" placeholder="FC Barcelona (99)&#10;POR: RPH (85) #11 | @ejemplo | Principal&#10;DFC: Rodrigo Silva (90) #4 | @ericg.2 | Secundario"></textarea><button id="importSquad" style="margin-top:10px">Importar equipo y jugadores</button></div><div class="card"><h2>Clubes (${teams.length})</h2>${teams.map((t,i)=>`<div class="teamrow">${crest(t)}<div style="flex:1"><b>${esc(t.name)}</b><div class="notice">División ${t.division} · ${clubPlayers(t.name).length} jugadores</div><small class="muted">${esc(t.stadium)} · ${t.capacity.toLocaleString()} espectadores</small></div><button class="secondary mini" data-stadium="${i}">Estadio</button><button class="danger mini" data-del-team="${i}">Eliminar</button></div>`).join('')||'<p class="empty">Todavía no hay clubes. Usa el formulario de creación para añadirlos.</p>'}</div>`)}
+function playersPage(){let rows=players.map(p=>`<tr><td>${avatar(p)} ${esc(p.name)}</td><td>${esc(p.team)}</td><td>${p.position}</td><td>${p.rating} <button class="secondary mini" data-edit-rating="${p.id}">Editar</button></td><td>${p.stats.goals}</td><td>${p.stats.assists}</td><td>${p.stats.fatigue}%</td><td>${p.stats.injury?'Lesionado ('+p.stats.injury+')':'Disponible'}</td><td>${p.stats.suspension?'Suspendido ('+p.stats.suspension+')':'—'}</td><td>${p.stats.yellow}</td><td>${p.stats.cleanSheets}</td><td><button class="danger mini" data-del-player="${p.id}">Quitar</button></td></tr>`).join('');shell('Jugadores',`<div class="eyebrow">PLANTILLAS, ESTADO FÍSICO Y DISCIPLINA</div><h1>Jugadores</h1><div class="card"><h2>Registrar futbolista</h2>${teams.length?`<form id="playerForm"><div class="row"><div class="field"><label>Nombre</label><input name="name" required maxlength="48"></div><div class="field"><label>País</label><input name="country"></div><div class="field"><label>Club</label><select name="team">${teams.map(t=>`<option>${esc(t.name)}</option>`).join('')}</select></div><div class="field"><label>Fotografía</label><input name="photo" type="file" accept="image/*"></div></div><div class="row"><div class="field"><label>Edad</label><input name="age" type="number" min="15" max="50" value="20"></div><div class="field"><label>Posición</label><select name="position">${['POR','DFC','LI','LD','MCD','MC','MCO','EI','ED','DC'].map(x=>`<option>${x}</option>`).join('')}</select></div><div class="field"><label>Dorsal</label><input name="number" type="number" min="1" max="99" value="10"></div><div class="field"><label>Media</label><input name="rating" type="number" min="1" max="100" value="75" required></div><button>Guardar jugador</button></div></form>`:'<p class="empty">Primero crea un club.</p>'}</div><div class="card"><h2>Plantillas y estado de jugadores</h2><div class="tablewrap"><table><thead><tr><th>Jugador</th><th>Club</th><th>Pos.</th><th>Media</th><th>G</th><th>A</th><th>Fatiga</th><th>Lesión</th><th>Sanción</th><th>Amarillas</th><th>Porterías a cero</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>`)}
 function isLeagueFormat(format){return ['Liga','Liga a una vuelta','Liga a dos vueltas','Liga + playoffs','Liguilla','Clasificatorias internacionales','Torneo triangular'].includes(format)}
 function isCupFormat(format){return !isLeagueFormat(format)}
 function compsPage(){const formats=['Liga a una vuelta','Liga a dos vueltas','Eliminación directa','Eliminación a doble partido','Fase de grupos + eliminatorias','Grupos + cuadrangular final','Playoffs','Liga + playoffs','Torneo de repechaje','Copa con ida y vuelta','Torneo triangular','Liguilla','Formato Mundial','Formato Eurocopa','Formato Copa América','Nations League','Clasificatorias internacionales','Amistosos internacionales'];shell('Competiciones',`<div class="eyebrow">LIGAS Y COPAS</div><h1>Competiciones</h1><div class="card"><h2>Nueva competición</h2><form id="compForm"><div class="row"><div class="field"><label>Nombre</label><input name="name" required></div><div class="field"><label>Formato</label><select name="format">${formats.map(x=>`<option>${x}</option>`).join('')}</select></div><div class="field"><label>Participantes</label><select name="participantType"><option value="club">Clubes</option><option value="selection">Selecciones</option></select></div><div class="field"><label>Vueltas de liga</label><select name="legs"><option value="1">Una vuelta</option><option value="2">Ida y vuelta</option></select></div><button>Crear</button></div><p class="notice">Los formatos avanzados quedan disponibles para elegir; la generación de calendario actual utiliza el motor base de liga o eliminatorias. Los torneos de grupos, playoffs, ascensos y descensos específicos requieren una fase adicional de desarrollo.</p></form></div>${comps.map((c,i)=>`<div class="card"><div class="subhead"><h2>${esc(c.name)}</h2><button class="danger mini" data-del-comp="${i}">Eliminar</button></div><p class="notice">${c.format} · ${c.participantType==='selection'?'Selecciones':'Clubes'} · ${c.teams.length} participantes · ${c.fixtures.length} partidos</p><form class="enroll" data-ci="${i}"><div class="row"><div class="field"><label>Inscribir ${c.participantType==='selection'?'selección':'club'}</label><select name="team">${teams.filter(t=>!c.teams.includes(t.name)).map(t=>`<option>${esc(t.name)}</option>`).join('')}</select></div><button ${!teams.some(t=>!c.teams.includes(t.name))||c.fixtures.length?'disabled':''}>Inscribir</button></div></form><div class="actions"><button class="secondary" data-gen="${i}" ${c.teams.length<2||c.fixtures.length?'disabled':''}>Generar ${isCupFormat(c.format)?'eliminatorias':'calendario'}</button>${isLeagueFormat(c.format)?`<button data-close-season="${i}">Cerrar competición y premiar campeón</button>`:''}</div>${isLeagueFormat(c.format)?`<h3>Clasificación</h3>${tableStand(c)}`:''}<p class="notice">Inscritos: ${c.teams.map(esc).join(' · ')||'ninguno'}</p></div>`).join('')||'<p class="empty">Todavía no hay competiciones.</p>'}`)}
@@ -1099,6 +1109,7 @@ function squadsPage(){
       <div class="notice">${esc(p.position)} · Dorsal ${p.number}</div>
      </div>
      <b>${p.rating}</b>
+     <button class="secondary mini" data-edit-rating="${p.id}">Editar media</button>
     </div>`).join(''):'<p class="empty">Sin jugadores registrados.</p>'}
   </div>`;
  }).join('')||'<p class="empty">Crea un club para comenzar.</p>'}
@@ -1277,6 +1288,7 @@ document.addEventListener('click',e=>{
  let p=e.target.closest('[data-page]');if(p){page=p.dataset.page;render()}
  let g=e.target.closest('[data-go]');if(g){page=g.dataset.go;render()}
  let dt=e.target.closest('[data-del-team]');if(dt&&confirm('¿Eliminar este club y sus jugadores?')){let t=teams[+dt.dataset.delTeam];players=players.filter(x=>x.team!==t.name);teams.splice(+dt.dataset.delTeam,1);save()}
+ let er=e.target.closest('[data-edit-rating]');if(er){let player=players.find(x=>x.id===er.dataset.editRating);if(!player)return;let value=prompt('Nueva media de '+player.name+' (1–100):',player.rating);if(value===null)return;let rating=Number(value);if(!Number.isInteger(rating)||rating<1||rating>100)return toast('La media debe ser un número entero entre 1 y 100.');player.rating=rating;save();toast('Media de '+player.name+' actualizada.')}
  let dp=e.target.closest('[data-del-player]');if(dp){players=players.filter(x=>x.id!==dp.dataset.delPlayer);save()}
  let dc=e.target.closest('[data-del-comp]');if(dc&&confirm('¿Eliminar competición?')){comps.splice(+dc.dataset.delComp,1);save()}
  let gn=e.target.closest('[data-gen]');if(gn){let c=comps[+gn.dataset.gen];c.fixtures=isCupFormat(c.format)?cupSchedule(c):schedule(c);save();toast('Calendario generado.')}
